@@ -6,7 +6,7 @@ import { db } from "@/lib/db";
 import { users } from "@/lib/db/schema";
 import { hashPassword } from "@/lib/auth/password";
 import { getCookieName, signSessionToken } from "@/lib/auth/jwt";
-import { getJwtSecret } from "@/lib/env";
+import { getJwtSecret, getSmtpEnv } from "@/lib/env";
 import { sendVerificationEmail } from "@/lib/auth/email";
 import { check, getClientIp, rateLimitResponse } from "@/lib/security/rate-limit";
 
@@ -52,6 +52,7 @@ export async function POST(request: Request) {
   }
 
   const passwordHash = await hashPassword(password);
+  const smtpConfigured = getSmtpEnv() !== null;
   const verificationToken = crypto.randomUUID();
   const verificationExpiry = new Date(Date.now() + 24 * 60 * 60 * 1000);
 
@@ -60,12 +61,15 @@ export async function POST(request: Request) {
     .values({
       email: email.toLowerCase(),
       passwordHash,
-      emailVerificationToken: verificationToken,
-      emailVerificationExpiry: verificationExpiry,
+      emailVerified: !smtpConfigured,
+      emailVerificationToken: smtpConfigured ? verificationToken : null,
+      emailVerificationExpiry: smtpConfigured ? verificationExpiry : null,
     })
     .returning({ id: users.id, email: users.email });
 
-  await sendVerificationEmail(created.email, verificationToken);
+  if (smtpConfigured) {
+    await sendVerificationEmail(created.email, verificationToken);
+  }
 
   const token = await signSessionToken(
     { sub: created.id, email: created.email },

@@ -23,6 +23,10 @@ export default async function DashboardLayout({
     .where(eq(users.id, session.id))
     .limit(1);
 
+  if (!user) {
+    redirect("/login");
+  }
+
   return (
     <div className="min-h-screen">
       <header className="border-b border-white/10 bg-ink-900/60 backdrop-blur">
