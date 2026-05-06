@@ -3,7 +3,7 @@
 > **SANDBOX / EDUCATIONAL USE ONLY — NOT FOR PRODUCTION**
 > This codebase is a reference implementation designed for learning, prototyping, and architectural exploration. It is **not audited, not legally reviewed, and must not be used to custody real funds, manage real private keys, or process real financial transactions.** See the [Production Warning](#production-warning) section for full details.
 
-Full-stack custodial wallet platform for **Ethereum Sepolia** and **Solana Devnet**. Users register, create multi-chain wallets, fetch balances (native + ERC-20 / SPL tokens), sign messages, send on-chain transactions, transfer funds between their own wallets, and view transaction history — all through a web UI and REST API backed by AES-256-GCM encrypted key storage, JWT session management, TOTP-based two-factor authentication, and email verification.
+Full-stack custodial wallet platform for **Ethereum Sepolia** and **Solana Devnet**. Users register, create multi-chain wallets, fetch balances (native + ERC-20 / SPL tokens), sign messages, send on-chain transactions, transfer funds between their own wallets, view on-chain transaction history (inbound + outbound), and share wallets with other users via role-based access control — all through a web UI and REST API backed by AES-256-GCM encrypted key storage, JWT session management, TOTP-based two-factor authentication, and email verification.
 
 ---
 
@@ -37,12 +37,12 @@ Full-stack custodial wallet platform for **Ethereum Sepolia** and **Solana Devne
 | Sessions | JWT in httpOnly cookies (jose) |
 | Authentication | Email/password + TOTP 2FA (otpauth) + email verification (nodemailer) |
 | Security | Rate limiting, CSP headers, HSTS, bcryptjs password hashing |
-| Tests | Vitest (8 unit test files — no DB or RPC required) |
+| Tests | Vitest (12 unit test files — no DB or RPC required) |
 | Package Manager | pnpm |
 
 VenCura implements the core backend logic of a **custodial cryptocurrency wallet platform** — the kind of infrastructure that underpins institutional digital asset custody services, fintech wallet products, and crypto-native banking platforms.
 
-The system handles the full wallet lifecycle: account registration with email verification, multi-chain wallet creation (Ethereum and Solana), private key generation and encrypted storage, balance queries across native and token assets, message signing, on-chain transaction submission, internal transfers between a user's own wallets, and app-recorded transaction history.
+The system handles the full wallet lifecycle: account registration with email verification, multi-chain wallet creation (Ethereum and Solana), private key generation and encrypted storage, balance queries across native and token assets, message signing, on-chain transaction submission, internal transfers between a user's own wallets, on-chain transaction history synced from block explorers (Etherscan for Ethereum, Solana RPC for Solana), and role-based wallet sharing with other registered users.
 
 Every private key is encrypted with **AES-256-GCM** using a dedicated 256-bit master key before being stored in PostgreSQL. Sessions are managed via **JWT tokens** in `httpOnly` cookies to prevent XSS-based token theft. Optional **TOTP two-factor authentication** adds a second layer of identity verification. Rate limiting protects sensitive endpoints (login, 2FA, email verification) from brute-force attacks.
 
@@ -114,7 +114,8 @@ The core challenge is securing private keys at rest while making them available 
 1. User authenticates via email/password → JWT issued in httpOnly cookie
 2. Authenticated requests hit API routes → middleware validates JWT + applies rate limiting
 3. Wallet operations decrypt the private key from the vault, execute chain operations, re-encrypt at rest
-4. Transaction hashes are recorded in the `transactions` table for app-level history
+4. Transaction history is auto-synced from chain explorers (Etherscan / Solana RPC) and stored in the `transactions` table
+5. Wallet owners can share wallets with other users — shared access is checked via the `wallet_shares` table with role-based permissions
 
 ---
 
@@ -128,6 +129,9 @@ Encrypts and decrypts private keys using AES-256-GCM with a 256-bit master key (
 
 ### Chain Adapters (`src/lib/chains/`)
 Abstraction layer for multi-chain operations. The Ethereum adapter uses Viem to interact with Sepolia — wallet creation, balance queries (native ETH + ERC-20), message signing, and transaction submission. The Solana adapter uses @solana/web3.js and @solana/spl-token for Devnet — wallet creation, SOL + SPL token balances, signing, and transfers.
+
+### Transaction History Sync (`src/lib/transactions/sync.ts`)
+Automatically syncs on-chain transaction history when a wallet's history is viewed and the cached data is stale (older than 2 minutes). Ethereum history is fetched from the Etherscan Sepolia API (native ETH + ERC-20 token transfers). Solana history is fetched directly from the RPC node (SOL system transfers + SPL token transfers). Transactions are deduplicated by `(txHash, walletId, direction)` and stored in the database for fast retrieval. Both inbound and outbound transactions are tracked.
 
 ### Security Layer (`src/lib/security/`)
 Rate limiting on sensitive endpoints (login, 2FA verification, email verification) using an in-memory sliding-window counter. Request logging captures IP, method, path, duration, and user ID for every API call.
@@ -154,8 +158,19 @@ Optional per-user TOTP (Time-based One-Time Password) using the otpauth library.
 ### Multi-Chain Abstraction
 Chain-specific logic is isolated behind a common interface (`src/lib/chains/types.ts`). Adding a new chain requires implementing the adapter interface — wallet creation, balance query, signing, and transaction submission — without modifying the API routes or middleware.
 
+### On-Chain Transaction History
+Transaction history is synced from external sources — Etherscan API for Ethereum Sepolia (native + ERC-20) and Solana RPC for Devnet (system + SPL transfers). The sync is lazy: history is fetched when a user views their transactions and the last sync is older than 2 minutes. Both incoming and outgoing transactions are normalized into a common format and deduplicated on insert. An optional `ETHERSCAN_API_KEY` increases Etherscan rate limits.
+
+### Shared Wallets
+Wallet owners can share wallets with other registered users by email. Shared access uses a role-based model:
+- **Owner** — full control, can share/revoke access
+- **Editor** — can sign messages, send transactions, and view balances
+- **Viewer** — read-only access to balances and transaction history
+
+The wallet share is recorded in the `wallet_shares` table with a unique constraint on `(walletId, userId)`. Shared wallets appear on the invitee's dashboard alongside their owned wallets. Only wallet owners can manage shares. The invited user must already have a registered account — the system does not send email invitations to unregistered users.
+
 ### Rate Limiting
-In-memory sliding-window rate limiter protects login, 2FA, and email verification endpoints from brute-force attacks. Tracks by IP + endpoint combination. Not distributed — suitable for single-instance deployments.
+In-memory sliding-window rate limiter protects login, 2FA, email verification, and wallet sharing endpoints from brute-force attacks. Tracks by IP + endpoint combination. Not distributed — suitable for single-instance deployments.
 
 ### Security Headers
 Next.js configuration applies strict security headers on every response: Content-Security-Policy, X-Frame-Options (DENY), X-Content-Type-Options (nosniff), HSTS with 2-year max-age, strict Referrer-Policy, and restrictive Permissions-Policy.
@@ -186,6 +201,7 @@ Next.js configuration applies strict security headers on every response: Content
 | `address` | VARCHAR | On-chain public address |
 | `encryptedPrivateKey` | TEXT | AES-256-GCM encrypted key blob |
 | `label` | VARCHAR (nullable) | User-defined wallet name |
+| `lastSyncedAt` | TIMESTAMP (nullable) | Last transaction history sync time |
 | `createdAt` | TIMESTAMP | Wallet creation time |
 
 ### `transactions`
@@ -195,14 +211,27 @@ Next.js configuration applies strict security headers on every response: Content
 | `walletId` | UUID FK | Source wallet (cascade delete) |
 | `chain` | VARCHAR | `ethereum` or `solana` |
 | `txHash` | VARCHAR | On-chain transaction hash |
-| `kind` | VARCHAR | `send` or `transfer` |
+| `kind` | VARCHAR | `send`, `receive`, or `transfer` |
 | `toAddress` | VARCHAR | Destination address |
 | `fromAddress` | VARCHAR (nullable) | Source address |
-| `direction` | VARCHAR | `outgoing` (default) |
+| `direction` | VARCHAR | `incoming` or `outgoing` (default: `outgoing`) |
 | `amount` | VARCHAR | Amount as string (precision-safe) |
 | `tokenSymbol` | VARCHAR (nullable) | Token symbol (ETH, SOL, USDC, etc.) |
 | `tokenAddress` | VARCHAR (nullable) | ERC-20 contract address or SPL mint |
 | `createdAt` | TIMESTAMP | Record creation time |
+
+Unique index on `(txHash, walletId, direction)` prevents duplicate records when syncing from chain explorers.
+
+### `wallet_shares`
+| Column | Type | Description |
+|--------|------|-------------|
+| `id` | UUID PK | Share record identifier |
+| `walletId` | UUID FK | Shared wallet (cascade delete) |
+| `userId` | UUID FK | Invitee user (cascade delete) |
+| `role` | VARCHAR | `viewer` or `editor` |
+| `createdAt` | TIMESTAMP | Share creation time |
+
+Unique index on `(walletId, userId)` — a wallet can only be shared once with each user.
 
 ---
 
@@ -240,7 +269,15 @@ All wallet endpoints require an authenticated session (httpOnly JWT cookie from 
 | `POST` | `/api/wallets/:id/sign` | `{ message }` | Sign message → `{ signedMessage }` |
 | `POST` | `/api/wallets/:id/send` | `{ to, amount, tokenAddress?, mint? }` | Send on-chain → `{ transactionHash }` |
 | `POST` | `/api/wallets/:id/transfer` | `{ toWalletId, amount, tokenAddress?, mint? }` | Transfer between own wallets |
-| `GET` | `/api/wallets/:id/transactions` | — | App-recorded outbound history |
+| `GET` | `/api/wallets/:id/transactions` | — | On-chain transaction history (inbound + outbound, auto-synced) |
+
+### Shared Wallets
+
+| Method | Path | Body | Description |
+|--------|------|------|-------------|
+| `GET` | `/api/wallets/:id/shares` | — | List users this wallet is shared with (owner only) |
+| `POST` | `/api/wallets/:id/shares` | `{ email, role }` | Invite user by email (`viewer` or `editor`) — user must be registered |
+| `DELETE` | `/api/wallets/:id/shares/:shareId` | — | Revoke shared access (owner only) |
 
 See `examples/api-client-example.ts` for a minimal `fetch`-based API client.
 
@@ -266,7 +303,14 @@ From the dashboard, create Ethereum (Sepolia) or Solana (Devnet) wallets. Each w
 - **Sign** — sign an arbitrary message with the wallet's private key
 - **Send** — submit an on-chain transaction to any address (native or token transfer)
 - **Transfer** — move funds between your own wallets (settles on-chain)
-- **History** — view app-recorded outbound transactions
+- **History** — view on-chain transaction history (both inbound and outbound, auto-synced from Etherscan / Solana RPC)
+
+### 6. Share Wallets
+From the wallet detail page, owners can share wallets with other registered users by entering their email address and selecting a role:
+- **Editor** — can sign, send, and transfer
+- **Viewer** — read-only access to balances and history
+
+The invited user must already have a VenCura account. Shared wallets appear on the invitee's dashboard with a role badge. Owners can revoke access at any time.
 
 ---
 
@@ -320,6 +364,7 @@ Open [http://localhost:3000](http://localhost:3000).
 | `ENCRYPTION_KEY` | Yes | `openssl rand -hex 32` → 64 hex characters (256-bit key) |
 | `ETH_RPC_URL` | Yes | Sepolia RPC endpoint (Infura, Alchemy, etc.) |
 | `SOL_RPC_URL` | No | Defaults to `https://api.devnet.solana.com` |
+| `ETHERSCAN_API_KEY` | No | Etherscan API key for higher rate limits on transaction history sync |
 | `APP_URL` | No | Defaults to `http://localhost:3000` |
 | `SMTP_HOST` | No | SMTP server for email verification |
 | `SMTP_PORT` | No | SMTP port (default: 587) |
@@ -397,11 +442,15 @@ pnpm exec vitest --coverage
 | `addresses.test.ts` | Ethereum and Solana address validation |
 | `amounts.test.ts` | Amount conversion (native decimals, wei, lamports) |
 | `env.test.ts` | Environment variable parsing and validation |
+| `ethereum-history.test.ts` | Etherscan transaction history fetching and normalization |
 | `jwt.test.ts` | JWT token creation and verification |
 | `password.test.ts` | bcryptjs password hashing and comparison |
 | `rate-limit.test.ts` | Sliding-window rate limiter logic |
+| `solana-history.test.ts` | Solana RPC transaction history parsing and normalization |
+| `sync.test.ts` | Stale-sync detection and transaction deduplication logic |
 | `totp.test.ts` | TOTP secret generation and code verification |
 | `vault.test.ts` | AES-256-GCM encrypt/decrypt round-trip |
+| `wallet-access.test.ts` | Role-based wallet access control (owner/editor/viewer) |
 
 All tests run without external dependencies — no database connection, no chain RPC, no SMTP server. Pure unit tests against isolated modules.
 
@@ -429,13 +478,16 @@ VENCURA/
 │   │   │   │   ├── resend-verification/route.ts
 │   │   │   │   └── 2fa/                  # TOTP setup/verify/enable/disable
 │   │   │   └── wallets/
-│   │   │       ├── route.ts              # List + create wallets
+│   │   │       ├── route.ts              # List + create wallets (owned + shared)
 │   │   │       └── [id]/
 │   │   │           ├── balance/route.ts  # Native + token balances
 │   │   │           ├── send/route.ts     # On-chain send
 │   │   │           ├── sign/route.ts     # Message signing
 │   │   │           ├── transfer/route.ts # Internal transfer
-│   │   │           └── transactions/route.ts
+│   │   │           ├── transactions/route.ts  # Transaction history (auto-synced)
+│   │   │           └── shares/
+│   │   │               ├── route.ts      # List + invite wallet shares
+│   │   │               └── [shareId]/route.ts  # Revoke share
 │   │   ├── login/page.tsx                # Login page
 │   │   ├── register/page.tsx             # Registration page
 │   │   ├── verify-email/page.tsx         # Email verification page
@@ -445,7 +497,8 @@ VENCURA/
 │   │
 │   ├── components/
 │   │   ├── CreateWalletForm.tsx           # Wallet creation UI
-│   │   ├── WalletDetail.tsx              # Wallet operations UI
+│   │   ├── WalletDetail.tsx              # Wallet operations UI (role-aware)
+│   │   ├── ShareManagement.tsx           # Wallet sharing UI (invite, list, revoke)
 │   │   ├── LogoutButton.tsx              # Session logout
 │   │   └── ResendVerificationButton.tsx  # Email re-send
 │   │
@@ -458,8 +511,10 @@ VENCURA/
 │   │   │   └── password.ts               # bcryptjs hash/verify
 │   │   ├── chains/                       # Chain adapters
 │   │   │   ├── ethereum.ts               # Viem (Sepolia)
+│   │   │   ├── ethereum-history.ts       # Etherscan transaction history
 │   │   │   ├── solana.ts                 # @solana/web3.js (Devnet)
-│   │   │   └── types.ts                  # Chain-agnostic interface
+│   │   │   ├── solana-history.ts         # Solana RPC transaction history
+│   │   │   └── types.ts                  # Chain-agnostic interface + NormalizedTx
 │   │   ├── crypto/
 │   │   │   └── vault.ts                  # AES-256-GCM encrypt/decrypt
 │   │   ├── db/
@@ -468,8 +523,10 @@ VENCURA/
 │   │   ├── security/
 │   │   │   ├── logger.ts                 # Request/event logging
 │   │   │   └── rate-limit.ts             # Rate limiting
+│   │   ├── transactions/
+│   │   │   └── sync.ts                   # Stale-check + sync from chain explorers
 │   │   ├── wallets/
-│   │   │   ├── access.ts                 # Authorization checks
+│   │   │   ├── access.ts                 # Role-based authorization (owner/editor/viewer)
 │   │   │   └── key.ts                    # Key management
 │   │   ├── validation/
 │   │   │   └── addresses.ts              # Address validation (ETH + SOL)
@@ -483,15 +540,21 @@ VENCURA/
 │   ├── addresses.test.ts
 │   ├── amounts.test.ts
 │   ├── env.test.ts
+│   ├── ethereum-history.test.ts
 │   ├── jwt.test.ts
 │   ├── password.test.ts
 │   ├── rate-limit.test.ts
+│   ├── solana-history.test.ts
+│   ├── sync.test.ts
 │   ├── totp.test.ts
-│   └── vault.test.ts
+│   ├── vault.test.ts
+│   └── wallet-access.test.ts
 │
 ├── drizzle/                              # Database migrations
 │   ├── 0000_tiny_matthew_murdock.sql     # Initial schema
 │   ├── 0001_unique_blur.sql              # Constraint updates
+│   ├── 0002_quiet_juggernaut.sql         # Wallet sync timestamp
+│   ├── 0003_mute_captain_cross.sql       # Wallet shares table
 │   └── meta/                             # Drizzle metadata
 │
 ├── examples/
@@ -522,7 +585,7 @@ VENCURA/
 | TLS termination & certificate pinning | Cookie-based sessions require HTTPS — plaintext in development exposes tokens |
 | Production authentication (OAuth 2.0 / SSO) | Email/password only — no federated identity, no enterprise SSO |
 | Distributed rate limiting (Redis-backed) | In-memory rate limiter resets on restart and doesn't work across multiple instances |
-| Chain indexer / webhook listener | Transaction history is app-recorded outbound only — no inbound detection or confirmation tracking |
+| Chain indexer / webhook listener | Transaction history is lazily synced from Etherscan/Solana RPC — no real-time webhook or streaming indexer for instant inbound detection |
 | Hot/cold wallet separation | All wallets are "hot" — no cold storage segregation for large balances |
 | Withdrawal approval workflows | No multi-approval, no spending limits, no velocity checks |
 | Monitoring & alerting (Prometheus, Grafana, PagerDuty) | No observability into system health, failed transactions, or anomalous activity |
