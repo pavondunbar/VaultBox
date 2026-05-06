@@ -1,0 +1,67 @@
+import { NextResponse } from "next/server";
+import { z } from "zod";
+import { eq } from "drizzle-orm";
+import { db } from "@/lib/db";
+import { users } from "@/lib/db/schema";
+import { hashPassword } from "@/lib/auth/password";
+import { getCookieName, signSessionToken } from "@/lib/auth/jwt";
+import { getJwtSecret } from "@/lib/env";
+
+const bodySchema = z.object({
+  email: z.string().email(),
+  password: z.string().min(8),
+});
+
+export async function POST(request: Request) {
+  let json: unknown;
+  try {
+    json = await request.json();
+  } catch {
+    return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
+  }
+
+  const parsed = bodySchema.safeParse(json);
+  if (!parsed.success) {
+    return NextResponse.json(
+      { error: parsed.error.flatten().fieldErrors },
+      { status: 400 },
+    );
+  }
+
+  const { email, password } = parsed.data;
+  const existing = await db
+    .select({ id: users.id })
+    .from(users)
+    .where(eq(users.email, email.toLowerCase()))
+    .limit(1);
+
+  if (existing.length > 0) {
+    return NextResponse.json(
+      { error: "An account with this email already exists" },
+      { status: 409 },
+    );
+  }
+
+  const passwordHash = await hashPassword(password);
+  const [created] = await db
+    .insert(users)
+    .values({ email: email.toLowerCase(), passwordHash })
+    .returning({ id: users.id, email: users.email });
+
+  const token = await signSessionToken(
+    { sub: created.id, email: created.email },
+    getJwtSecret(),
+  );
+
+  const res = NextResponse.json({
+    user: { id: created.id, email: created.email },
+  });
+  res.cookies.set(getCookieName(), token, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
+    path: "/",
+    maxAge: 60 * 60 * 24 * 7,
+  });
+  return res;
+}
