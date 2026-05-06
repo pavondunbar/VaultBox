@@ -283,17 +283,26 @@ From the dashboard, create Ethereum (Sepolia) or Solana (Devnet) wallets. Each w
 
 ```bash
 # Clone the repository
-git clone https://github.com/pavondunbar/VENCURA.git
-cd VENCURA
+git clone https://github.com/pavondunbar/Vencura
+cd Vencura
 
 # Install dependencies
 make install
+
+# Obtain Encryption Key. Copy and paste it. You will need it for your .env file
+openssl rand -hex 32
 
 # Configure environment
 cp .env.example .env
 # Edit .env — set DATABASE_URL, JWT_SECRET, ENCRYPTION_KEY, ETH_RPC_URL
 
-# Create the database and apply schema
+# Create the vencura database
+make db-create
+
+# Generate the schemas for the vencura database
+make db-generate
+
+# Push the schema to the vencura database
 make db-push
 
 # Start the dev server
