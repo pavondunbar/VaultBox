@@ -59,6 +59,30 @@ export const transactions = pgTable(
   ],
 );
 
+export const ledgerEntries = pgTable(
+  "ledger_entries",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    txHash: text("tx_hash").notNull(),
+    walletId: uuid("wallet_id")
+      .references(() => wallets.id, { onDelete: "cascade" })
+      .notNull(),
+    chain: text("chain").notNull(),
+    entryType: text("entry_type").notNull(), // 'debit' or 'credit'
+    amount: text("amount").notNull(),
+    tokenSymbol: text("token_symbol"),
+    tokenAddress: text("token_address"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => [
+    uniqueIndex("ledger_tx_wallet_type_idx").on(
+      table.txHash,
+      table.walletId,
+      table.entryType,
+    ),
+  ],
+);
+
 export const walletShares = pgTable(
   "wallet_shares",
   {
@@ -84,3 +108,4 @@ export type User = typeof users.$inferSelect;
 export type WalletRow = typeof wallets.$inferSelect;
 export type TransactionRow = typeof transactions.$inferSelect;
 export type WalletShareRow = typeof walletShares.$inferSelect;
+export type LedgerEntryRow = typeof ledgerEntries.$inferSelect;

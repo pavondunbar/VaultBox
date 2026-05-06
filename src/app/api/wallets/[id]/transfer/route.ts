@@ -17,6 +17,7 @@ import { requireWalletAccess } from "@/lib/wallets/access";
 import { db } from "@/lib/db";
 import { transactions } from "@/lib/db/schema";
 import { check, rateLimitResponse } from "@/lib/security/rate-limit";
+import { recordLedgerEntries, createDebitCreditPair } from "@/lib/transactions/ledger";
 
 const idSchema = z.string().uuid();
 
@@ -179,6 +180,18 @@ export async function POST(
         tokenAddress: tokenAddrOut,
       },
     ]);
+
+    await recordLedgerEntries(
+      createDebitCreditPair({
+        txHash,
+        fromWalletId: fromWallet.id,
+        toWalletId: destWallet.id,
+        chain: fromWallet.chain,
+        amount,
+        tokenSymbol,
+        tokenAddress: tokenAddrOut,
+      }),
+    );
 
     return NextResponse.json({ transactionHash: txHash });
   } catch (e) {

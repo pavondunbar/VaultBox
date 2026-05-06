@@ -37,14 +37,15 @@ Full-stack custodial wallet platform for **Ethereum Sepolia** and **Solana Devne
 | Sessions | JWT in httpOnly cookies (jose) |
 | Authentication | Email/password + TOTP 2FA (otpauth) + email verification (nodemailer) |
 | Security | Rate limiting, CSP headers, HSTS, bcryptjs password hashing |
-| Tests | Vitest (12 unit test files — no DB or RPC required) |
+| Ledger | Double-entry accounting (debits = credits) |
+| Tests | Vitest (13 unit test files — no DB or RPC required) |
 | Package Manager | pnpm |
 
 VenCura implements the core backend logic of a **custodial cryptocurrency wallet platform** — the kind of infrastructure that underpins institutional digital asset custody services, fintech wallet products, and crypto-native banking platforms.
 
 The system handles the full wallet lifecycle: account registration with email verification, multi-chain wallet creation (Ethereum and Solana), private key generation and encrypted storage, balance queries across native and token assets, message signing, on-chain transaction submission, internal transfers between a user's own wallets, on-chain transaction history synced from block explorers (Etherscan for Ethereum, Solana RPC for Solana), and role-based wallet sharing with other registered users.
 
-Every private key is encrypted with **AES-256-GCM** using a dedicated 256-bit master key before being stored in PostgreSQL. Sessions are managed via **JWT tokens** in `httpOnly` cookies to prevent XSS-based token theft. Optional **TOTP two-factor authentication** adds a second layer of identity verification. Rate limiting protects sensitive endpoints (login, 2FA, email verification) from brute-force attacks.
+Every private key is encrypted with **AES-256-GCM** using a dedicated 256-bit master key before being stored in PostgreSQL. Sessions are managed via **JWT tokens** in `httpOnly` cookies to prevent XSS-based token theft. Optional **TOTP two-factor authentication** adds a second layer of identity verification. Rate limiting protects sensitive endpoints (login, 2FA, email verification) from brute-force attacks. All transactions are recorded using **double-entry accounting** in an append-only ledger where debits and credits always offset to zero.
 
 ---
 
@@ -133,6 +134,9 @@ Abstraction layer for multi-chain operations. The Ethereum adapter uses Viem to 
 ### Transaction History Sync (`src/lib/transactions/sync.ts`)
 Automatically syncs on-chain transaction history when a wallet's history is viewed and the cached data is stale (older than 2 minutes). Ethereum history is fetched from the Etherscan Sepolia API (native ETH + ERC-20 token transfers). Solana history is fetched directly from the RPC node (SOL system transfers + SPL token transfers). Transactions are deduplicated by `(txHash, walletId, direction)` and stored in the database for fast retrieval. Both inbound and outbound transactions are tracked.
 
+### Double-Entry Ledger (`src/lib/transactions/ledger.ts`)
+All transactions are recorded using double-entry accounting principles. Every transfer creates a balanced pair of entries: a **debit** (reduction) on the source wallet and a **credit** (addition) on the destination wallet. For external sends (to addresses outside the platform), only a debit is recorded. The `ledger_entries` table is append-only — entries are never modified or deleted. The `verifyLedgerBalance()` function can audit that debits equal credits for any transaction.
+
 ### Security Layer (`src/lib/security/`)
 Rate limiting on sensitive endpoints (login, 2FA verification, email verification) using an in-memory sliding-window counter. Request logging captures IP, method, path, duration, and user ID for every API call.
 
@@ -174,6 +178,9 @@ In-memory sliding-window rate limiter protects login, 2FA, email verification, a
 
 ### Security Headers
 Next.js configuration applies strict security headers on every response: Content-Security-Policy, X-Frame-Options (DENY), X-Content-Type-Options (nosniff), HSTS with 2-year max-age, strict Referrer-Policy, and restrictive Permissions-Policy.
+
+### Double-Entry Accounting
+All transactions follow double-entry bookkeeping where every debit has a corresponding credit. Internal transfers between wallets create balanced pairs (debit on source, credit on destination). External sends record a debit on the sender's wallet. The ledger is append-only, ensuring a complete audit trail. The `verifyLedgerBalance()` utility confirms that debits equal credits for any transaction hash.
 
 ---
 
@@ -232,6 +239,21 @@ Unique index on `(txHash, walletId, direction)` prevents duplicate records when 
 | `createdAt` | TIMESTAMP | Share creation time |
 
 Unique index on `(walletId, userId)` — a wallet can only be shared once with each user.
+
+### `ledger_entries`
+| Column | Type | Description |
+|--------|------|-------------|
+| `id` | UUID PK | Entry identifier |
+| `txHash` | VARCHAR | On-chain transaction hash |
+| `walletId` | UUID FK | Wallet affected (cascade delete) |
+| `chain` | VARCHAR | `ethereum` or `solana` |
+| `entryType` | VARCHAR | `debit` or `credit` |
+| `amount` | VARCHAR | Amount as string (precision-safe) |
+| `tokenSymbol` | VARCHAR (nullable) | Token symbol (ETH, SOL, USDC, etc.) |
+| `tokenAddress` | VARCHAR (nullable) | ERC-20 contract address or SPL mint |
+| `createdAt` | TIMESTAMP | Entry creation time |
+
+Unique index on `(txHash, walletId, entryType)` prevents duplicate entries. The ledger is append-only — entries are never modified or deleted.
 
 ---
 
@@ -410,6 +432,18 @@ Open [http://localhost:3000](http://localhost:3000).
 | `make db-studio` | Open Drizzle Studio (browser-based DB explorer) |
 | `make shell-pg` | Open a psql shell using `DATABASE_URL` |
 
+### Database Queries
+
+| Command | Description |
+|---------|-------------|
+| `make db-users` | List all registered users |
+| `make db-wallets` | List all wallets with owner email |
+| `make db-transactions` | List recent transactions (limit 20) |
+| `make db-shares` | List all shared wallets |
+| `make db-ledger` | List recent ledger entries (limit 20) |
+| `make db-ledger-balance` | Verify ledger balances (debits should equal credits) |
+| `make db-wallet-balances` | Show wallet balances derived from ledger |
+
 ### Utilities
 
 | Command | Description |
@@ -448,6 +482,7 @@ pnpm exec vitest --coverage
 | `rate-limit.test.ts` | Sliding-window rate limiter logic |
 | `solana-history.test.ts` | Solana RPC transaction history parsing and normalization |
 | `sync.test.ts` | Stale-sync detection and transaction deduplication logic |
+| `ledger.test.ts` | Double-entry ledger debit/credit pair creation |
 | `totp.test.ts` | TOTP secret generation and code verification |
 | `vault.test.ts` | AES-256-GCM encrypt/decrypt round-trip |
 | `wallet-access.test.ts` | Role-based wallet access control (owner/editor/viewer) |
@@ -524,7 +559,9 @@ VENCURA/
 │   │   │   ├── logger.ts                 # Request/event logging
 │   │   │   └── rate-limit.ts             # Rate limiting
 │   │   ├── transactions/
-│   │   │   └── sync.ts                   # Stale-check + sync from chain explorers
+│   │   │   ├── sync.ts                   # Stale-check + sync from chain explorers
+│   │   │   ├── ledger.ts                 # Double-entry ledger recording
+│   │   │   └── ledger-balance.ts         # Ledger balance verification
 │   │   ├── wallets/
 │   │   │   ├── access.ts                 # Role-based authorization (owner/editor/viewer)
 │   │   │   └── key.ts                    # Key management
@@ -546,6 +583,7 @@ VENCURA/
 │   ├── rate-limit.test.ts
 │   ├── solana-history.test.ts
 │   ├── sync.test.ts
+│   ├── ledger.test.ts
 │   ├── totp.test.ts
 │   ├── vault.test.ts
 │   └── wallet-access.test.ts
@@ -555,6 +593,7 @@ VENCURA/
 │   ├── 0001_unique_blur.sql              # Constraint updates
 │   ├── 0002_quiet_juggernaut.sql         # Wallet sync timestamp
 │   ├── 0003_mute_captain_cross.sql       # Wallet shares table
+│   ├── 0004_dizzy_wonder_man.sql         # Ledger entries table
 │   └── meta/                             # Drizzle metadata
 │
 ├── examples/

@@ -1,6 +1,7 @@
 .PHONY: help install dev up down build start restart \
        test test-unit lint typecheck integrity \
        db-create db-push db-generate db-studio shell-pg \
+       db-users db-wallets db-transactions db-shares db-ledger db-ledger-balance db-wallet-balances \
        health clean nuke logs demo open-docs
 
 # ──────────────────────────────────────────────
@@ -99,6 +100,71 @@ db-studio: ## Open Drizzle Studio (browser-based DB explorer)
 
 shell-pg: ## Open a psql shell using DATABASE_URL
 	@. ./.env 2>/dev/null; psql "$$DATABASE_URL"
+
+# ── Database Queries ─────────────────────────
+
+db-users: ## List all registered users
+	@. ./.env 2>/dev/null; psql "$$DATABASE_URL" -c \
+		"SELECT id, email, email_verified, totp_enabled, created_at FROM users ORDER BY created_at DESC;"
+
+db-wallets: ## List all wallets with owner email
+	@. ./.env 2>/dev/null; psql "$$DATABASE_URL" -c \
+		"SELECT w.id, u.email AS owner, w.chain, w.address, w.label, w.created_at \
+		FROM wallets w JOIN users u ON w.user_id = u.id ORDER BY w.created_at DESC;"
+
+db-transactions: ## List recent transactions (limit 20)
+	@. ./.env 2>/dev/null; psql "$$DATABASE_URL" -c \
+		"SELECT t.id, u.email, t.chain, t.kind, t.direction, t.amount, t.token_symbol, \
+		LEFT(t.tx_hash, 16) || '...' AS tx_hash, t.created_at \
+		FROM transactions t \
+		JOIN wallets w ON t.wallet_id = w.id \
+		JOIN users u ON w.user_id = u.id \
+		ORDER BY t.created_at DESC LIMIT 20;"
+
+db-shares: ## List all shared wallets
+	@. ./.env 2>/dev/null; psql "$$DATABASE_URL" -c \
+		"SELECT ws.id, owner.email AS owner, shared.email AS shared_with, \
+		ws.role, w.chain, LEFT(w.address, 12) || '...' AS wallet, ws.created_at \
+		FROM wallet_shares ws \
+		JOIN wallets w ON ws.wallet_id = w.id \
+		JOIN users owner ON w.user_id = owner.id \
+		JOIN users shared ON ws.user_id = shared.id \
+		ORDER BY ws.created_at DESC;"
+
+db-ledger: ## List recent ledger entries (limit 20)
+	@. ./.env 2>/dev/null; psql "$$DATABASE_URL" -c \
+		"SELECT le.id, u.email, le.entry_type, le.amount, le.token_symbol, \
+		LEFT(le.tx_hash, 16) || '...' AS tx_hash, le.created_at \
+		FROM ledger_entries le \
+		JOIN wallets w ON le.wallet_id = w.id \
+		JOIN users u ON w.user_id = u.id \
+		ORDER BY le.created_at DESC LIMIT 20;"
+
+db-ledger-balance: ## Verify ledger balances (debits should equal credits)
+	@. ./.env 2>/dev/null; psql "$$DATABASE_URL" -c \
+		"SELECT tx_hash, \
+		SUM(CASE WHEN entry_type = 'debit' THEN amount::numeric ELSE 0 END) AS total_debits, \
+		SUM(CASE WHEN entry_type = 'credit' THEN amount::numeric ELSE 0 END) AS total_credits, \
+		CASE \
+			WHEN SUM(CASE WHEN entry_type = 'debit' THEN amount::numeric ELSE 0 END) = \
+			     SUM(CASE WHEN entry_type = 'credit' THEN amount::numeric ELSE 0 END) \
+			THEN '✓ balanced' ELSE '✗ UNBALANCED' \
+		END AS status \
+		FROM ledger_entries GROUP BY tx_hash ORDER BY tx_hash;"
+
+db-wallet-balances: ## Show wallet balances derived from ledger
+	@. ./.env 2>/dev/null; psql "$$DATABASE_URL" -c \
+		"SELECT u.email, w.chain, LEFT(w.address, 12) || '...' AS wallet, \
+		w.label, \
+		COALESCE(SUM(CASE WHEN le.entry_type = 'credit' THEN le.amount::numeric ELSE 0 END), 0) - \
+		COALESCE(SUM(CASE WHEN le.entry_type = 'debit' THEN le.amount::numeric ELSE 0 END), 0) AS ledger_balance, \
+		le.token_symbol \
+		FROM wallets w \
+		JOIN users u ON w.user_id = u.id \
+		LEFT JOIN ledger_entries le ON w.id = le.wallet_id \
+		GROUP BY u.email, w.id, w.chain, w.address, w.label, le.token_symbol \
+		HAVING COUNT(le.id) > 0 \
+		ORDER BY u.email, w.chain;"
 
 # ── Health ───────────────────────────────────
 

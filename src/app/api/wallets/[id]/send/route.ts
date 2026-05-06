@@ -16,8 +16,10 @@ import { unlockWalletKey } from "@/lib/wallets/key";
 import { requireWalletAccess } from "@/lib/wallets/access";
 import { isValidEthAddress, isValidSolAddress } from "@/lib/validation/addresses";
 import { db } from "@/lib/db";
-import { transactions } from "@/lib/db/schema";
+import { transactions, wallets } from "@/lib/db/schema";
+import { eq } from "drizzle-orm";
 import { check, rateLimitResponse } from "@/lib/security/rate-limit";
+import { recordLedgerEntries } from "@/lib/transactions/ledger";
 
 const idSchema = z.string().uuid();
 
@@ -154,6 +156,50 @@ export async function POST(
       tokenSymbol,
       tokenAddress: tokenAddrOut,
     });
+
+    // Check if recipient is an internal wallet
+    const recipientWallet = await db
+      .select()
+      .from(wallets)
+      .where(eq(wallets.address, to))
+      .limit(1);
+
+    if (recipientWallet.length > 0) {
+      // Internal transfer - record both debit and credit
+      await recordLedgerEntries([
+        {
+          txHash,
+          walletId: wallet.id,
+          chain: wallet.chain,
+          entryType: "debit",
+          amount,
+          tokenSymbol,
+          tokenAddress: tokenAddrOut,
+        },
+        {
+          txHash,
+          walletId: recipientWallet[0].id,
+          chain: wallet.chain,
+          entryType: "credit",
+          amount,
+          tokenSymbol,
+          tokenAddress: tokenAddrOut,
+        },
+      ]);
+    } else {
+      // External send - record debit only (credit to external)
+      await recordLedgerEntries([
+        {
+          txHash,
+          walletId: wallet.id,
+          chain: wallet.chain,
+          entryType: "debit",
+          amount,
+          tokenSymbol,
+          tokenAddress: tokenAddrOut,
+        },
+      ]);
+    }
 
     return NextResponse.json({ transactionHash: txHash });
   } catch (e) {
