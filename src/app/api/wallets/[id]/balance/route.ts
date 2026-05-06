@@ -4,7 +4,7 @@ import { getSessionUser } from "@/lib/auth/session";
 import { getServerEnv } from "@/lib/env";
 import { getErc20Balance, getEthNativeBalance } from "@/lib/chains/ethereum";
 import { getSolNativeBalance, getSplBalance } from "@/lib/chains/solana";
-import { getWalletForUser } from "@/lib/wallets/access";
+import { requireWalletAccess } from "@/lib/wallets/access";
 
 const idSchema = z.string().uuid();
 
@@ -22,10 +22,11 @@ export async function GET(
     return NextResponse.json({ error: "Invalid wallet id" }, { status: 400 });
   }
 
-  const wallet = await getWalletForUser(id, session.id);
-  if (!wallet) {
+  const access = await requireWalletAccess(id, session.id, "viewer");
+  if (!access) {
     return NextResponse.json({ error: "Wallet not found" }, { status: 404 });
   }
+  const { wallet } = access;
 
   const env = getServerEnv();
   const url = new URL(request.url);

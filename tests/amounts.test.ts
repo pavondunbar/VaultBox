@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseHumanAmountToBigInt } from "@/lib/pure/amounts";
+import { formatLamports, parseHumanAmountToBigInt } from "@/lib/pure/amounts";
 
 describe("parseHumanAmountToBigInt", () => {
   it("parses a whole number", () => {
@@ -43,5 +43,51 @@ describe("parseHumanAmountToBigInt", () => {
   it("throws on invalid decimals", () => {
     expect(() => parseHumanAmountToBigInt("1", -1)).toThrow();
     expect(() => parseHumanAmountToBigInt("1", 1.5)).toThrow();
+  });
+
+  it("parses SOL '0.1' with 9 decimals correctly", () => {
+    expect(parseHumanAmountToBigInt("0.1", 9)).toBe(100_000_000n);
+  });
+
+  it("parses SOL '1.23' with 9 decimals correctly", () => {
+    expect(parseHumanAmountToBigInt("1.23", 9)).toBe(1_230_000_000n);
+  });
+});
+
+describe("formatLamports", () => {
+  it("formats zero", () => {
+    expect(formatLamports(0)).toBe("0");
+  });
+
+  it("formats an exact SOL amount", () => {
+    expect(formatLamports(1_000_000_000)).toBe("1");
+  });
+
+  it("formats multiple SOL", () => {
+    expect(formatLamports(5_000_000_000)).toBe("5");
+  });
+
+  it("formats a fractional amount", () => {
+    expect(formatLamports(1_500_000_000)).toBe("1.5");
+  });
+
+  it("formats 1 lamport", () => {
+    expect(formatLamports(1)).toBe("0.000000001");
+  });
+
+  it("strips trailing zeros", () => {
+    expect(formatLamports(100_000_000)).toBe("0.1");
+  });
+
+  it("handles a complex fractional amount", () => {
+    expect(formatLamports(1_230_000_000)).toBe("1.23");
+  });
+
+  it("throws on negative input", () => {
+    expect(() => formatLamports(-1)).toThrow("non-negative integer");
+  });
+
+  it("throws on non-integer input", () => {
+    expect(() => formatLamports(1.5)).toThrow("non-negative integer");
   });
 });

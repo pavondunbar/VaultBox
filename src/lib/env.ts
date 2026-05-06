@@ -58,3 +58,11 @@ export function getSmtpEnv(): SmtpEnv | null {
 export function getAppUrl(): string {
   return process.env.APP_URL ?? "http://localhost:3000";
 }
+
+export function getEtherscanApiKey(): string | null {
+  const key = process.env.ETHERSCAN_API_KEY;
+  if (!key || key.length === 0) {
+    return null;
+  }
+  return key;
+}

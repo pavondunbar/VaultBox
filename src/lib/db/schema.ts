@@ -3,6 +3,7 @@ import {
   pgTable,
   text,
   timestamp,
+  uniqueIndex,
   uuid,
 } from "drizzle-orm/pg-core";
 
@@ -27,26 +28,59 @@ export const wallets = pgTable("wallets", {
   address: text("address").notNull(),
   encryptedPrivateKey: text("encrypted_private_key").notNull(),
   label: text("label"),
+  lastSyncedAt: timestamp("last_synced_at"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
-export const transactions = pgTable("transactions", {
-  id: uuid("id").defaultRandom().primaryKey(),
-  walletId: uuid("wallet_id")
-    .references(() => wallets.id, { onDelete: "cascade" })
-    .notNull(),
-  chain: text("chain").notNull(),
-  txHash: text("tx_hash").notNull(),
-  kind: text("kind").notNull(),
-  toAddress: text("to_address").notNull(),
-  fromAddress: text("from_address"),
-  direction: text("direction").notNull().default("outgoing"),
-  amount: text("amount").notNull(),
-  tokenSymbol: text("token_symbol"),
-  tokenAddress: text("token_address"),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-});
+export const transactions = pgTable(
+  "transactions",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    walletId: uuid("wallet_id")
+      .references(() => wallets.id, { onDelete: "cascade" })
+      .notNull(),
+    chain: text("chain").notNull(),
+    txHash: text("tx_hash").notNull(),
+    kind: text("kind").notNull(),
+    toAddress: text("to_address").notNull(),
+    fromAddress: text("from_address"),
+    direction: text("direction").notNull().default("outgoing"),
+    amount: text("amount").notNull(),
+    tokenSymbol: text("token_symbol"),
+    tokenAddress: text("token_address"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => [
+    uniqueIndex("tx_wallet_direction_idx").on(
+      table.txHash,
+      table.walletId,
+      table.direction,
+    ),
+  ],
+);
+
+export const walletShares = pgTable(
+  "wallet_shares",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    walletId: uuid("wallet_id")
+      .references(() => wallets.id, { onDelete: "cascade" })
+      .notNull(),
+    userId: uuid("user_id")
+      .references(() => users.id, { onDelete: "cascade" })
+      .notNull(),
+    role: text("role").notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => [
+    uniqueIndex("wallet_shares_wallet_user_idx").on(
+      table.walletId,
+      table.userId,
+    ),
+  ],
+);
 
 export type User = typeof users.$inferSelect;
 export type WalletRow = typeof wallets.$inferSelect;
 export type TransactionRow = typeof transactions.$inferSelect;
+export type WalletShareRow = typeof walletShares.$inferSelect;

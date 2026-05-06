@@ -7,7 +7,7 @@ import { encryptSecret } from "@/lib/crypto/vault";
 import { createEthereumWallet } from "@/lib/chains/ethereum";
 import { createSolanaWallet } from "@/lib/chains/solana";
 import { db } from "@/lib/db";
-import { users, wallets } from "@/lib/db/schema";
+import { users, wallets, walletShares } from "@/lib/db/schema";
 import { check, rateLimitResponse } from "@/lib/security/rate-limit";
 
 const createSchema = z.object({
@@ -21,7 +21,7 @@ export async function GET() {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const rows = await db
+  const owned = await db
     .select({
       id: wallets.id,
       chain: wallets.chain,
@@ -32,6 +32,25 @@ export async function GET() {
     .from(wallets)
     .where(eq(wallets.userId, session.id))
     .orderBy(desc(wallets.createdAt));
+
+  const shared = await db
+    .select({
+      id: wallets.id,
+      chain: wallets.chain,
+      address: wallets.address,
+      label: wallets.label,
+      createdAt: wallets.createdAt,
+      role: walletShares.role,
+    })
+    .from(walletShares)
+    .innerJoin(wallets, eq(wallets.id, walletShares.walletId))
+    .where(eq(walletShares.userId, session.id))
+    .orderBy(desc(wallets.createdAt));
+
+  const rows = [
+    ...owned.map((w) => ({ ...w, role: "owner" as const })),
+    ...shared.map((w) => ({ ...w, role: w.role as "editor" | "viewer" })),
+  ];
 
   return NextResponse.json({ wallets: rows });
 }

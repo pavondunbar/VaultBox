@@ -22,7 +22,7 @@ importers:
         version: 6.0.0
       drizzle-orm:
         specifier: ^0.41.0
-        version: 0.41.0(pg@8.20.0)
+        version: 0.41.0(@types/pg@8.20.0)(pg@8.20.0)
       jose:
         specifier: ^6.0.11
         version: 6.2.3
@@ -66,6 +66,9 @@ importers:
       '@types/nodemailer':
         specifier: ^8.0.0
         version: 8.0.0
+      '@types/pg':
+        specifier: ^8.20.0
+        version: 8.20.0
       '@types/qrcode':
         specifier: ^1.5.6
         version: 1.5.6
@@ -1141,6 +1144,9 @@ packages:
 
   '@types/nodemailer@8.0.0':
     resolution: {integrity: sha512-fyf8jWULsCo0d0BuoQ75i6IeoHs47qcqxWc7yUdUcV0pOZGjUTTOvwdG1PRXUDqN/8A64yQdQdnA2pZgcdi+cA==}
+
+  '@types/pg@8.20.0':
+    resolution: {integrity: sha512-bEPFOaMAHTEP1EzpvHTbmwR8UsFyHSKsRisLIHVMXnpNefSbGA1bD6CVy+qKjGSqmZqNqBDV2azOBo8TgkcVow==}
 
   '@types/qrcode@1.5.6':
     resolution: {integrity: sha512-te7NQcV2BOvdj2b1hCAHzAoMNuj65kNBMz0KBaxM6c3VGBOhU0dURQKOtH8CFNI/dsKkwlv32p26qYQTWoB5bw==}
@@ -4063,6 +4069,12 @@ snapshots:
     dependencies:
       '@types/node': 22.19.17
 
+  '@types/pg@8.20.0':
+    dependencies:
+      '@types/node': 22.19.17
+      pg-protocol: 1.13.0
+      pg-types: 2.2.0
+
   '@types/qrcode@1.5.6':
     dependencies:
       '@types/node': 22.19.17
@@ -4643,8 +4655,9 @@ snapshots:
       esbuild: 0.25.12
       tsx: 4.21.0
 
-  drizzle-orm@0.41.0(pg@8.20.0):
+  drizzle-orm@0.41.0(@types/pg@8.20.0)(pg@8.20.0):
     optionalDependencies:
+      '@types/pg': 8.20.0
       pg: 8.20.0
 
   dunder-proto@1.0.1:

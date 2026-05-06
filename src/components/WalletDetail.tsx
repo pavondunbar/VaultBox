@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { ShareManagement } from "@/components/ShareManagement";
 
 type BalanceNativeEth = {
   chain: "ethereum";
@@ -30,10 +31,13 @@ function explorerUrl(chain: string, txHash: string): string {
 export function WalletDetail({
   walletId,
   chain,
+  role = "owner",
 }: {
   walletId: string;
   chain: "ethereum" | "solana";
+  role?: "owner" | "editor" | "viewer";
 }) {
+  const canWrite = role !== "viewer";
   const [balance, setBalance] = useState<BalanceResp | null>(null);
   const [balanceError, setBalanceError] = useState<string | null>(null);
   const [tokenQuery, setTokenQuery] = useState("");
@@ -281,7 +285,7 @@ export function WalletDetail({
         </div>
       </section>
 
-      <section className="rounded-xl border border-white/10 bg-ink-900/50 p-6">
+      {canWrite && <section className="rounded-xl border border-white/10 bg-ink-900/50 p-6">
         <h2 className="text-lg font-medium text-white">Sign message</h2>
         <textarea
           value={signMsg}
@@ -305,9 +309,9 @@ export function WalletDetail({
             {signed}
           </p>
         )}
-      </section>
+      </section>}
 
-      <section className="rounded-xl border border-white/10 bg-ink-900/50 p-6">
+      {canWrite && <section className="rounded-xl border border-white/10 bg-ink-900/50 p-6">
         <h2 className="text-lg font-medium text-white">Send on-chain</h2>
         <div className="mt-4 space-y-3">
           <input
@@ -348,9 +352,9 @@ export function WalletDetail({
             </p>
           )}
         </div>
-      </section>
+      </section>}
 
-      <section className="rounded-xl border border-white/10 bg-ink-900/50 p-6">
+      {canWrite && <section className="rounded-xl border border-white/10 bg-ink-900/50 p-6">
         <h2 className="text-lg font-medium text-white">
           Transfer to your wallet
         </h2>
@@ -403,7 +407,7 @@ export function WalletDetail({
             </p>
           )}
         </div>
-      </section>
+      </section>}
 
       <section className="lg:col-span-2 rounded-xl border border-white/10 bg-ink-900/50 p-6">
         <h2 className="text-lg font-medium text-white">Transaction history</h2>
@@ -466,6 +470,8 @@ export function WalletDetail({
           </table>
         </div>
       </section>
+
+      {role === "owner" && <ShareManagement walletId={walletId} />}
     </div>
   );
 }

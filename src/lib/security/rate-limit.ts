@@ -15,6 +15,8 @@ const LIMITS: Record<string, RateLimitConfig> = {
   send: { limit: 10, windowMs: 60 * 1000 },
   sign: { limit: 20, windowMs: 60 * 1000 },
   createWallet: { limit: 5, windowMs: 60 * 60 * 1000 },
+  sync: { limit: 10, windowMs: 60_000 },
+  share: { limit: 10, windowMs: 60 * 60 * 1000 },
   resendVerification: { limit: 3, windowMs: 15 * 60 * 1000 },
 };
 

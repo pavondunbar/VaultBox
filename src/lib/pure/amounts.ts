@@ -1,3 +1,27 @@
+const SOL_DECIMALS = 9;
+const LAMPORTS_DIVISOR = 10n ** BigInt(SOL_DECIMALS);
+
+/**
+ * Format a lamport count (integer) as a human-readable SOL string.
+ * Uses BigInt arithmetic to avoid floating-point precision loss.
+ */
+export function formatLamports(lamports: number): string {
+  if (!Number.isInteger(lamports) || lamports < 0) {
+    throw new Error("lamports must be a non-negative integer");
+  }
+  const big = BigInt(lamports);
+  const whole = big / LAMPORTS_DIVISOR;
+  const frac = big % LAMPORTS_DIVISOR;
+  if (frac === 0n) {
+    return whole.toString();
+  }
+  const fracStr = frac
+    .toString()
+    .padStart(SOL_DECIMALS, "0")
+    .replace(/0+$/, "");
+  return `${whole}.${fracStr}`;
+}
+
 /**
  * Parse a non-negative decimal string into base units for `decimals` places.
  */

@@ -15,6 +15,20 @@
       "when": 1778084216254,
       "tag": "0001_unique_blur",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1778103428771,
+      "tag": "0002_quiet_juggernaut",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1778104553533,
+      "tag": "0003_mute_captain_cross",
+      "breakpoints": true
     }
   ]
 }

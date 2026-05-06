@@ -5,7 +5,6 @@ import {
   SystemProgram,
   Transaction,
   sendAndConfirmTransaction,
-  LAMPORTS_PER_SOL,
 } from "@solana/web3.js";
 import {
   createAssociatedTokenAccountInstruction,
@@ -16,7 +15,7 @@ import {
 } from "@solana/spl-token";
 import bs58 from "bs58";
 import nacl from "tweetnacl";
-import { parseHumanAmountToBigInt } from "@/lib/pure/amounts";
+import { formatLamports, parseHumanAmountToBigInt } from "@/lib/pure/amounts";
 
 export function createSolanaWallet(): {
   address: string;
@@ -44,7 +43,7 @@ export async function getSolNativeBalance(
   const lamports = await conn.getBalance(pk);
   return {
     lamports,
-    formatted: (lamports / LAMPORTS_PER_SOL).toFixed(9).replace(/\.?0+$/, "") || "0",
+    formatted: formatLamports(lamports),
   };
 }
 
@@ -95,10 +94,8 @@ export async function sendSolNative(params: {
   const conn = new Connection(params.rpcUrl, "confirmed");
   const from = keypairFromSecret(params.secretBs58);
   const to = new PublicKey(params.to);
-  const lamports = Math.round(
-    parseFloat(params.amountSol) * LAMPORTS_PER_SOL,
-  );
-  if (!Number.isFinite(lamports) || lamports <= 0) {
+  const lamports = parseHumanAmountToBigInt(params.amountSol, 9);
+  if (lamports <= 0n) {
     throw new Error("Invalid SOL amount");
   }
   const ix = SystemProgram.transfer({

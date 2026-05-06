@@ -2,7 +2,7 @@ import Link from "next/link";
 import { desc, eq } from "drizzle-orm";
 import { getSessionUser } from "@/lib/auth/session";
 import { db } from "@/lib/db";
-import { wallets } from "@/lib/db/schema";
+import { wallets, walletShares } from "@/lib/db/schema";
 import { CreateWalletForm } from "@/components/CreateWalletForm";
 
 export default async function DashboardPage() {
@@ -11,7 +11,7 @@ export default async function DashboardPage() {
     return null;
   }
 
-  const list = await db
+  const owned = await db
     .select({
       id: wallets.id,
       chain: wallets.chain,
@@ -22,6 +22,25 @@ export default async function DashboardPage() {
     .from(wallets)
     .where(eq(wallets.userId, user.id))
     .orderBy(desc(wallets.createdAt));
+
+  const shared = await db
+    .select({
+      id: wallets.id,
+      chain: wallets.chain,
+      address: wallets.address,
+      label: wallets.label,
+      createdAt: wallets.createdAt,
+      role: walletShares.role,
+    })
+    .from(walletShares)
+    .innerJoin(wallets, eq(wallets.id, walletShares.walletId))
+    .where(eq(walletShares.userId, user.id))
+    .orderBy(desc(wallets.createdAt));
+
+  const list = [
+    ...owned.map((w) => ({ ...w, role: "owner" as const })),
+    ...shared.map((w) => ({ ...w, role: w.role as "editor" | "viewer" })),
+  ];
 
   return (
     <div className="space-y-10">
@@ -48,9 +67,16 @@ export default async function DashboardPage() {
               className="group rounded-xl border border-white/10 bg-ink-900/60 p-5 transition hover:border-mint-500/40 hover:bg-ink-900"
             >
               <div className="flex items-center justify-between gap-2">
-                <span className="rounded-full bg-white/5 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider text-mint-400">
-                  {w.chain}
-                </span>
+                <div className="flex items-center gap-2">
+                  <span className="rounded-full bg-white/5 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider text-mint-400">
+                    {w.chain}
+                  </span>
+                  {w.role !== "owner" && (
+                    <span className="rounded-full bg-amber-500/20 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider text-amber-400">
+                      Shared ({w.role})
+                    </span>
+                  )}
+                </div>
                 <span className="text-xs text-slate-500 group-hover:text-slate-400">
                   Open →
                 </span>

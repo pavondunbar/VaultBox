@@ -13,7 +13,7 @@ import {
   sendSplToken,
 } from "@/lib/chains/solana";
 import { unlockWalletKey } from "@/lib/wallets/key";
-import { getWalletForUser } from "@/lib/wallets/access";
+import { requireWalletAccess } from "@/lib/wallets/access";
 import { db } from "@/lib/db";
 import { transactions } from "@/lib/db/schema";
 import { check, rateLimitResponse } from "@/lib/security/rate-limit";
@@ -61,18 +61,24 @@ export async function POST(
     return rateLimitResponse(rateResult);
   }
 
-  const fromWallet = await getWalletForUser(id, session.id);
-  if (!fromWallet) {
+  const fromAccess = await requireWalletAccess(id, session.id, "editor");
+  if (!fromAccess) {
     return NextResponse.json({ error: "Wallet not found" }, { status: 404 });
   }
+  const fromWallet = fromAccess.wallet;
 
-  const destWallet = await getWalletForUser(parsed.data.toWalletId, session.id);
-  if (!destWallet) {
+  const destAccess = await requireWalletAccess(
+    parsed.data.toWalletId,
+    session.id,
+    "viewer",
+  );
+  if (!destAccess) {
     return NextResponse.json(
       { error: "Destination wallet not found" },
       { status: 404 },
     );
   }
+  const destWallet = destAccess.wallet;
 
   if (fromWallet.id === destWallet.id) {
     return NextResponse.json(

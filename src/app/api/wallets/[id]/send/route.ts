@@ -13,7 +13,7 @@ import {
   sendSplToken,
 } from "@/lib/chains/solana";
 import { unlockWalletKey } from "@/lib/wallets/key";
-import { getWalletForUser } from "@/lib/wallets/access";
+import { requireWalletAccess } from "@/lib/wallets/access";
 import { isValidEthAddress, isValidSolAddress } from "@/lib/validation/addresses";
 import { db } from "@/lib/db";
 import { transactions } from "@/lib/db/schema";
@@ -62,10 +62,11 @@ export async function POST(
     return rateLimitResponse(rateResult);
   }
 
-  const wallet = await getWalletForUser(id, session.id);
-  if (!wallet) {
+  const access = await requireWalletAccess(id, session.id, "editor");
+  if (!access) {
     return NextResponse.json({ error: "Wallet not found" }, { status: 404 });
   }
+  const { wallet } = access;
 
   const { to, amount, tokenAddress, mint } = parsed.data;
 
