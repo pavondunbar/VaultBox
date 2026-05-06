@@ -293,7 +293,7 @@ make install
 cp .env.example .env
 # Edit .env — set DATABASE_URL, JWT_SECRET, ENCRYPTION_KEY, ETH_RPC_URL
 
-# Apply database migrations
+# Create the database and apply schema
 make db-push
 
 # Start the dev server
@@ -350,8 +350,9 @@ Open [http://localhost:3000](http://localhost:3000).
 
 | Command | Description |
 |---------|-------------|
+| `make db-create` | Create the PostgreSQL database if it doesn't exist |
 | `make db-generate` | Generate Drizzle migration from schema changes |
-| `make db-push` | Apply database migrations |
+| `make db-push` | Create the database (if needed) and apply schema |
 | `make db-studio` | Open Drizzle Studio (browser-based DB explorer) |
 | `make shell-pg` | Open a psql shell using `DATABASE_URL` |
 

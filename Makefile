@@ -1,6 +1,6 @@
 .PHONY: help install dev up down build start restart \
        test test-unit lint typecheck integrity \
-       db-push db-generate db-studio shell-pg \
+       db-create db-push db-generate db-studio shell-pg \
        health clean nuke logs demo open-docs
 
 # ──────────────────────────────────────────────
@@ -76,10 +76,22 @@ integrity: lint typecheck test ## Run lint + typecheck + tests
 
 # ── Database ─────────────────────────────────
 
+db-create: ## Create the PostgreSQL database if it doesn't exist
+	@. ./.env 2>/dev/null; \
+	DB_NAME=$$(echo "$$DATABASE_URL" | sed -n 's|.*/\([^?]*\).*|\1|p'); \
+	if psql "$$DATABASE_URL" -c '' 2>/dev/null; then \
+		echo "Database '$$DB_NAME' already exists."; \
+	else \
+		BASE_URL=$$(echo "$$DATABASE_URL" | sed 's|/[^/]*$$|/postgres|'); \
+		echo "Creating database '$$DB_NAME'..."; \
+		psql "$$BASE_URL" -c "CREATE DATABASE $$DB_NAME;" && \
+		echo "Database '$$DB_NAME' created."; \
+	fi
+
 db-generate: ## Generate Drizzle migration from schema changes
 	pnpm db:generate
 
-db-push: ## Apply database migrations
+db-push: db-create ## Apply database migrations
 	pnpm db:push
 
 db-studio: ## Open Drizzle Studio (browser-based DB explorer)
