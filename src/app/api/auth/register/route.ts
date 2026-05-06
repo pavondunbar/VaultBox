@@ -1,3 +1,4 @@
+import crypto from "node:crypto";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { eq } from "drizzle-orm";
@@ -6,6 +7,8 @@ import { users } from "@/lib/db/schema";
 import { hashPassword } from "@/lib/auth/password";
 import { getCookieName, signSessionToken } from "@/lib/auth/jwt";
 import { getJwtSecret } from "@/lib/env";
+import { sendVerificationEmail } from "@/lib/auth/email";
+import { check, getClientIp, rateLimitResponse } from "@/lib/security/rate-limit";
 
 const bodySchema = z.object({
   email: z.string().email(),
@@ -13,6 +16,12 @@ const bodySchema = z.object({
 });
 
 export async function POST(request: Request) {
+  const ip = getClientIp(request);
+  const rateResult = check("register", ip);
+  if (!rateResult.allowed) {
+    return rateLimitResponse(rateResult);
+  }
+
   let json: unknown;
   try {
     json = await request.json();
@@ -43,10 +52,20 @@ export async function POST(request: Request) {
   }
 
   const passwordHash = await hashPassword(password);
+  const verificationToken = crypto.randomUUID();
+  const verificationExpiry = new Date(Date.now() + 24 * 60 * 60 * 1000);
+
   const [created] = await db
     .insert(users)
-    .values({ email: email.toLowerCase(), passwordHash })
+    .values({
+      email: email.toLowerCase(),
+      passwordHash,
+      emailVerificationToken: verificationToken,
+      emailVerificationExpiry: verificationExpiry,
+    })
     .returning({ id: users.id, email: users.email });
+
+  await sendVerificationEmail(created.email, verificationToken);
 
   const token = await signSessionToken(
     { sub: created.id, email: created.email },

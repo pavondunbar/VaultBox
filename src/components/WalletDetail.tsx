@@ -20,6 +20,13 @@ type BalanceNativeSol = {
 
 type BalanceResp = BalanceNativeEth | BalanceNativeSol | Record<string, unknown>;
 
+function explorerUrl(chain: string, txHash: string): string {
+  if (chain === "ethereum") {
+    return `https://sepolia.etherscan.io/tx/${txHash}`;
+  }
+  return `https://explorer.solana.com/tx/${txHash}?cluster=devnet`;
+}
+
 export function WalletDetail({
   walletId,
   chain,
@@ -194,6 +201,9 @@ export function WalletDetail({
       txHash: string;
       kind: string;
       toAddress: string;
+      fromAddress: string | null;
+      direction: string;
+      chain: string;
       amount: string;
       tokenSymbol: string | null;
       tokenAddress: string | null;
@@ -398,14 +408,15 @@ export function WalletDetail({
       <section className="lg:col-span-2 rounded-xl border border-white/10 bg-ink-900/50 p-6">
         <h2 className="text-lg font-medium text-white">Transaction history</h2>
         <p className="mt-1 text-xs text-slate-500">
-          Outbound sends recorded by VenCura for this wallet.
+          Transactions recorded by VenCura for this wallet.
         </p>
         <div className="mt-4 overflow-x-auto">
           <table className="w-full text-left text-sm">
             <thead>
               <tr className="border-b border-white/10 text-slate-500">
+                <th className="pb-2 pr-4 font-medium">Direction</th>
                 <th className="pb-2 pr-4 font-medium">Kind</th>
-                <th className="pb-2 pr-4 font-medium">To</th>
+                <th className="pb-2 pr-4 font-medium">To/From</th>
                 <th className="pb-2 pr-4 font-medium">Amount</th>
                 <th className="pb-2 font-medium">Tx</th>
               </tr>
@@ -413,20 +424,40 @@ export function WalletDetail({
             <tbody>
               {txRows.length === 0 ? (
                 <tr>
-                  <td colSpan={4} className="py-6 text-slate-500">
+                  <td colSpan={5} className="py-6 text-slate-500">
                     No transactions yet.
                   </td>
                 </tr>
               ) : (
                 txRows.map((t) => (
                   <tr key={t.id} className="border-b border-white/5">
+                    <td className="py-2 pr-4">
+                      <span
+                        className={
+                          t.direction === "incoming"
+                            ? "text-green-400"
+                            : "text-red-400"
+                        }
+                      >
+                        {t.direction === "incoming" ? "Received" : "Sent"}
+                      </span>
+                    </td>
                     <td className="py-2 pr-4 text-slate-300">{t.kind}</td>
                     <td className="max-w-[180px] truncate py-2 pr-4 font-mono text-xs text-slate-400">
-                      {t.toAddress}
+                      {t.direction === "incoming"
+                        ? t.fromAddress ?? "—"
+                        : t.toAddress}
                     </td>
                     <td className="py-2 pr-4">{t.amount}</td>
-                    <td className="py-2 font-mono text-xs text-mint-400/90">
-                      {t.txHash.slice(0, 16)}…
+                    <td className="py-2 font-mono text-xs">
+                      <a
+                        href={explorerUrl(t.chain, t.txHash)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-mint-400/90 hover:text-mint-300 hover:underline"
+                      >
+                        {t.txHash.slice(0, 16)}…
+                      </a>
                     </td>
                   </tr>
                 ))

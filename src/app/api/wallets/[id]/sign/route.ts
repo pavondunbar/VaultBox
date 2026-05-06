@@ -6,6 +6,7 @@ import { signEthMessage } from "@/lib/chains/ethereum";
 import { signSolanaMessage } from "@/lib/chains/solana";
 import { unlockWalletKey } from "@/lib/wallets/key";
 import { getWalletForUser } from "@/lib/wallets/access";
+import { check, rateLimitResponse } from "@/lib/security/rate-limit";
 
 const idSchema = z.string().uuid();
 
@@ -40,6 +41,11 @@ export async function POST(
       { error: parsed.error.flatten().fieldErrors },
       { status: 400 },
     );
+  }
+
+  const rateResult = check("sign", session.id);
+  if (!rateResult.allowed) {
+    return rateLimitResponse(rateResult);
   }
 
   const wallet = await getWalletForUser(id, session.id);

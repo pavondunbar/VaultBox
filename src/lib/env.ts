@@ -32,3 +32,29 @@ export function getJwtSecret(): string {
   }
   return s;
 }
+
+export type SmtpEnv = {
+  host: string;
+  port: number;
+  user: string;
+  pass: string;
+  from: string;
+};
+
+export function getSmtpEnv(): SmtpEnv | null {
+  const host = process.env.SMTP_HOST;
+  const port = process.env.SMTP_PORT;
+  const user = process.env.SMTP_USER;
+  const pass = process.env.SMTP_PASS;
+  const from = process.env.SMTP_FROM;
+
+  if (!host || !port || !user || !pass || !from) {
+    return null;
+  }
+
+  return { host, port: parseInt(port, 10), user, pass, from };
+}
+
+export function getAppUrl(): string {
+  return process.env.APP_URL ?? "http://localhost:3000";
+}

@@ -1,4 +1,5 @@
 import {
+  boolean,
   pgTable,
   text,
   timestamp,
@@ -9,6 +10,11 @@ export const users = pgTable("users", {
   id: uuid("id").defaultRandom().primaryKey(),
   email: text("email").notNull().unique(),
   passwordHash: text("password_hash").notNull(),
+  emailVerified: boolean("email_verified").notNull().default(false),
+  emailVerificationToken: text("email_verification_token"),
+  emailVerificationExpiry: timestamp("email_verification_expiry"),
+  totpSecret: text("totp_secret"),
+  totpEnabled: boolean("totp_enabled").notNull().default(false),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
@@ -33,6 +39,8 @@ export const transactions = pgTable("transactions", {
   txHash: text("tx_hash").notNull(),
   kind: text("kind").notNull(),
   toAddress: text("to_address").notNull(),
+  fromAddress: text("from_address"),
+  direction: text("direction").notNull().default("outgoing"),
   amount: text("amount").notNull(),
   tokenSymbol: text("token_symbol"),
   tokenAddress: text("token_address"),

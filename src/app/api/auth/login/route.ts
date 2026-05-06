@@ -4,8 +4,18 @@ import { eq } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { users } from "@/lib/db/schema";
 import { verifyPassword } from "@/lib/auth/password";
-import { getCookieName, signSessionToken } from "@/lib/auth/jwt";
+import {
+  getCookieName,
+  signSessionToken,
+  signTwoFactorToken,
+} from "@/lib/auth/jwt";
 import { getJwtSecret } from "@/lib/env";
+import {
+  check,
+  getClientIp,
+  rateLimitResponse,
+} from "@/lib/security/rate-limit";
+import { logSecurityEvent } from "@/lib/security/logger";
 
 const bodySchema = z.object({
   email: z.string().email(),
@@ -13,6 +23,18 @@ const bodySchema = z.object({
 });
 
 export async function POST(request: Request) {
+  const ip = getClientIp(request);
+  const rateResult = check("login", ip);
+  if (!rateResult.allowed) {
+    logSecurityEvent({
+      timestamp: new Date().toISOString(),
+      event: "rate_limit_hit",
+      ip,
+      details: "login",
+    });
+    return rateLimitResponse(rateResult);
+  }
+
   let json: unknown;
   try {
     json = await request.json();
@@ -36,12 +58,31 @@ export async function POST(request: Request) {
     .limit(1);
 
   if (!user || !(await verifyPassword(password, user.passwordHash))) {
-    return NextResponse.json({ error: "Invalid email or password" }, { status: 401 });
+    logSecurityEvent({
+      timestamp: new Date().toISOString(),
+      event: "failed_login",
+      ip,
+      details: email.toLowerCase(),
+    });
+    return NextResponse.json(
+      { error: "Invalid email or password" },
+      { status: 401 },
+    );
+  }
+
+  const jwtSecret = getJwtSecret();
+
+  if (user.totpEnabled) {
+    const tempToken = await signTwoFactorToken(
+      { sub: user.id, email: user.email },
+      jwtSecret,
+    );
+    return NextResponse.json({ requires2FA: true, tempToken });
   }
 
   const token = await signSessionToken(
     { sub: user.id, email: user.email },
-    getJwtSecret(),
+    jwtSecret,
   );
 
   const res = NextResponse.json({

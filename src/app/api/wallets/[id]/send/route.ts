@@ -17,6 +17,7 @@ import { getWalletForUser } from "@/lib/wallets/access";
 import { isValidEthAddress, isValidSolAddress } from "@/lib/validation/addresses";
 import { db } from "@/lib/db";
 import { transactions } from "@/lib/db/schema";
+import { check, rateLimitResponse } from "@/lib/security/rate-limit";
 
 const idSchema = z.string().uuid();
 
@@ -54,6 +55,11 @@ export async function POST(
       { error: parsed.error.flatten().fieldErrors },
       { status: 400 },
     );
+  }
+
+  const rateResult = check("send", session.id);
+  if (!rateResult.allowed) {
+    return rateLimitResponse(rateResult);
   }
 
   const wallet = await getWalletForUser(id, session.id);
@@ -141,6 +147,8 @@ export async function POST(
       txHash,
       kind: "send",
       toAddress: to,
+      fromAddress: wallet.address,
+      direction: "outgoing",
       amount,
       tokenSymbol,
       tokenAddress: tokenAddrOut,

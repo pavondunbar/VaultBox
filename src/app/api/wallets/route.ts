@@ -7,7 +7,8 @@ import { encryptSecret } from "@/lib/crypto/vault";
 import { createEthereumWallet } from "@/lib/chains/ethereum";
 import { createSolanaWallet } from "@/lib/chains/solana";
 import { db } from "@/lib/db";
-import { wallets } from "@/lib/db/schema";
+import { users, wallets } from "@/lib/db/schema";
+import { check, rateLimitResponse } from "@/lib/security/rate-limit";
 
 const createSchema = z.object({
   chain: z.enum(["ethereum", "solana"]),
@@ -39,6 +40,24 @@ export async function POST(request: Request) {
   const session = await getSessionUser();
   if (!session) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const [user] = await db
+    .select({ emailVerified: users.emailVerified })
+    .from(users)
+    .where(eq(users.id, session.id))
+    .limit(1);
+
+  if (!user?.emailVerified) {
+    return NextResponse.json(
+      { error: "Email verification required before creating wallets" },
+      { status: 403 },
+    );
+  }
+
+  const rateResult = check("createWallet", session.id);
+  if (!rateResult.allowed) {
+    return rateLimitResponse(rateResult);
   }
 
   let json: unknown;

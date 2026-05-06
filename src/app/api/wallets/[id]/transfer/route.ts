@@ -16,6 +16,7 @@ import { unlockWalletKey } from "@/lib/wallets/key";
 import { getWalletForUser } from "@/lib/wallets/access";
 import { db } from "@/lib/db";
 import { transactions } from "@/lib/db/schema";
+import { check, rateLimitResponse } from "@/lib/security/rate-limit";
 
 const idSchema = z.string().uuid();
 
@@ -53,6 +54,11 @@ export async function POST(
       { error: parsed.error.flatten().fieldErrors },
       { status: 400 },
     );
+  }
+
+  const rateResult = check("send", session.id);
+  if (!rateResult.allowed) {
+    return rateLimitResponse(rateResult);
   }
 
   const fromWallet = await getWalletForUser(id, session.id);
@@ -141,16 +147,32 @@ export async function POST(
       });
     }
 
-    await db.insert(transactions).values({
-      walletId: fromWallet.id,
-      chain: fromWallet.chain,
-      txHash,
-      kind: "transfer",
-      toAddress: to,
-      amount,
-      tokenSymbol,
-      tokenAddress: tokenAddrOut,
-    });
+    await db.insert(transactions).values([
+      {
+        walletId: fromWallet.id,
+        chain: fromWallet.chain,
+        txHash,
+        kind: "transfer",
+        toAddress: to,
+        fromAddress: fromWallet.address,
+        direction: "outgoing",
+        amount,
+        tokenSymbol,
+        tokenAddress: tokenAddrOut,
+      },
+      {
+        walletId: destWallet.id,
+        chain: destWallet.chain,
+        txHash,
+        kind: "transfer",
+        toAddress: destWallet.address,
+        fromAddress: fromWallet.address,
+        direction: "incoming",
+        amount,
+        tokenSymbol,
+        tokenAddress: tokenAddrOut,
+      },
+    ]);
 
     return NextResponse.json({ transactionHash: txHash });
   } catch (e) {
