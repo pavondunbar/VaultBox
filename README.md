@@ -283,8 +283,8 @@ From the dashboard, create Ethereum (Sepolia) or Solana (Devnet) wallets. Each w
 
 ```bash
 # Clone the repository
-git clone https://github.com/pavondunbar/VENCURE.git
-cd VENCURE
+git clone https://github.com/pavondunbar/VENCURA.git
+cd VENCURA
 
 # Install dependencies
 make install
@@ -401,7 +401,7 @@ All tests run without external dependencies — no database connection, no chain
 ## Project Structure
 
 ```
-VENCURE/
+VENCURA/
 ├── src/
 │   ├── app/                              # Next.js App Router
 │   │   ├── (dashboard)/                  # Authenticated route group
