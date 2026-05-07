@@ -37,7 +37,7 @@ Full-stack custodial wallet platform for **Ethereum Sepolia** and **Solana Devne
 | Sessions | JWT in httpOnly cookies (jose) |
 | Authentication | Email/password + TOTP 2FA (otpauth) + email verification (nodemailer) |
 | Security | Rate limiting, CSP headers, HSTS, bcryptjs password hashing |
-| Ledger | Double-entry accounting (debits = credits) |
+| Ledger | Double-entry accounting (debits = credits) with advisory locking |
 | Tests | Vitest (13 unit test files — no DB or RPC required) |
 | Package Manager | pnpm |
 
@@ -137,6 +137,9 @@ Automatically syncs on-chain transaction history when a wallet's history is view
 ### Double-Entry Ledger (`src/lib/transactions/ledger.ts`)
 All transactions are recorded using double-entry accounting principles. Every transfer creates a balanced pair of entries: a **debit** (reduction) on the source wallet and a **credit** (addition) on the destination wallet. For external sends (to addresses outside the platform), only a debit is recorded. The `ledger_entries` table is append-only — entries are never modified or deleted. The `verifyLedgerBalance()` function can audit that debits equal credits for any transaction.
 
+### Advisory Locking (`src/lib/db/wallet-lock.ts`)
+Wallet operations (`/send` and `/transfer`) use PostgreSQL transaction-scoped advisory locks (`pg_advisory_xact_lock`) to serialize concurrent requests on the same wallet. Before broadcasting a transaction, the handler acquires a lock on the sender's wallet ID, reads the current ledger balance, and rejects the request if funds are insufficient. For transfers between two wallets, locks are acquired in lexicographic order to prevent deadlocks. Locks auto-release on transaction commit or rollback — no manual cleanup or schema migration required.
+
 ### Security Layer (`src/lib/security/`)
 Rate limiting on sensitive endpoints (login, 2FA verification, email verification) using an in-memory sliding-window counter. Request logging captures IP, method, path, duration, and user ID for every API call.
 
@@ -181,6 +184,9 @@ Next.js configuration applies strict security headers on every response: Content
 
 ### Double-Entry Accounting
 All transactions follow double-entry bookkeeping where every debit has a corresponding credit. Internal transfers between wallets create balanced pairs (debit on source, credit on destination). External sends record a debit on the sender's wallet. The ledger is append-only, ensuring a complete audit trail. The `verifyLedgerBalance()` utility confirms that debits equal credits for any transaction hash.
+
+### Concurrency Control via Advisory Locks
+The `/send` and `/transfer` endpoints wrap all database operations (balance check, blockchain broadcast, transaction insert, ledger entry) in a single PostgreSQL transaction. Before executing, they acquire a transaction-scoped advisory lock on the sender's wallet ID using `pg_advisory_xact_lock(hashtext(walletId))`. This prevents two concurrent requests from reading the same balance and both passing validation — the second request blocks until the first commits, then sees the updated balance. Transfers lock both the sender and receiver wallets in sorted order to prevent deadlocks. No schema changes are needed — advisory locks are a PostgreSQL built-in.
 
 ---
 
@@ -554,7 +560,9 @@ VENCURA/
 │   │   │   └── vault.ts                  # AES-256-GCM encrypt/decrypt
 │   │   ├── db/
 │   │   │   ├── index.ts                  # Database connection
-│   │   │   └── schema.ts                # Drizzle ORM schema
+│   │   │   ├── schema.ts                # Drizzle ORM schema
+│   │   │   ├── types.ts                 # Shared DB context type (db + tx)
+│   │   │   └── wallet-lock.ts           # Advisory lock utilities
 │   │   ├── security/
 │   │   │   ├── logger.ts                 # Request/event logging
 │   │   │   └── rate-limit.ts             # Rate limiting

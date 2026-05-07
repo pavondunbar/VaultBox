@@ -1,4 +1,5 @@
 import { db } from "@/lib/db";
+import type { DbContext } from "@/lib/db/types";
 import { ledgerEntries } from "@/lib/db/schema";
 
 export type LedgerEntry = {
@@ -11,7 +12,10 @@ export type LedgerEntry = {
   tokenAddress: string | null;
 };
 
-export async function recordLedgerEntries(entries: LedgerEntry[]): Promise<void> {
+export async function recordLedgerEntries(
+  entries: LedgerEntry[],
+  ctx: DbContext = db,
+): Promise<void> {
   if (entries.length === 0) return;
 
   const values = entries.map((e) => ({
@@ -24,7 +28,7 @@ export async function recordLedgerEntries(entries: LedgerEntry[]): Promise<void>
     tokenAddress: e.tokenAddress,
   }));
 
-  await db.insert(ledgerEntries).values(values).onConflictDoNothing({
+  await ctx.insert(ledgerEntries).values(values).onConflictDoNothing({
     target: [ledgerEntries.txHash, ledgerEntries.walletId, ledgerEntries.entryType],
   });
 }

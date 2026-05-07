@@ -20,6 +20,9 @@ import { transactions, wallets } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
 import { check, rateLimitResponse } from "@/lib/security/rate-limit";
 import { recordLedgerEntries } from "@/lib/transactions/ledger";
+import { acquireWalletLock } from "@/lib/db/wallet-lock";
+import { getWalletBalanceFromLedger } from "@/lib/transactions/ledger-balance";
+import { numericGte } from "@/lib/pure/amounts";
 
 const idSchema = z.string().uuid();
 
@@ -98,110 +101,137 @@ export async function POST(
   const secret = unlockWalletKey(wallet, env.ENCRYPTION_KEY);
 
   try {
-    let txHash: string;
-    let tokenSymbol: string | null = null;
-    let tokenAddrOut: string | null = null;
+    const result = await db.transaction(async (tx) => {
+      await acquireWalletLock(tx, wallet.id);
 
-    if (wallet.chain === "ethereum") {
-      if (tokenAddress) {
-        const decimals = await fetchErc20Decimals(env.ETH_RPC_URL, tokenAddress);
-        txHash = await sendErc20({
-          rpcUrl: env.ETH_RPC_URL,
-          privateKeyHex: secret,
-          tokenAddress,
-          to,
+      const balance = await getWalletBalanceFromLedger(
+        wallet.id,
+        tokenAddress ?? mint ?? null,
+        tx,
+      );
+      if (!numericGte(balance, amount)) {
+        return { error: "Insufficient funds", status: 400 as const };
+      }
+
+      let txHash: string;
+      let tokenSymbol: string | null = null;
+      let tokenAddrOut: string | null = null;
+
+      if (wallet.chain === "ethereum") {
+        if (tokenAddress) {
+          const decimals = await fetchErc20Decimals(
+            env.ETH_RPC_URL,
+            tokenAddress,
+          );
+          txHash = await sendErc20({
+            rpcUrl: env.ETH_RPC_URL,
+            privateKeyHex: secret,
+            tokenAddress,
+            to,
+            amount,
+            decimals,
+          });
+          tokenAddrOut = tokenAddress;
+          tokenSymbol = "ERC20";
+        } else {
+          txHash = await sendEthNative({
+            rpcUrl: env.ETH_RPC_URL,
+            privateKeyHex: secret,
+            to,
+            amountEth: amount,
+          });
+        }
+      } else if (mint) {
+        const decimals = await fetchSplDecimals(env.SOL_RPC_URL, mint);
+        txHash = await sendSplToken({
+          rpcUrl: env.SOL_RPC_URL,
+          secretBs58: secret,
+          mint,
+          toOwnerAddress: to,
           amount,
           decimals,
         });
-        tokenAddrOut = tokenAddress;
-        tokenSymbol = "ERC20";
+        tokenAddrOut = mint;
+        tokenSymbol = "SPL";
       } else {
-        txHash = await sendEthNative({
-          rpcUrl: env.ETH_RPC_URL,
-          privateKeyHex: secret,
+        txHash = await sendSolNative({
+          rpcUrl: env.SOL_RPC_URL,
+          secretBs58: secret,
           to,
-          amountEth: amount,
+          amountSol: amount,
         });
       }
-    } else if (mint) {
-      const decimals = await fetchSplDecimals(env.SOL_RPC_URL, mint);
-      txHash = await sendSplToken({
-        rpcUrl: env.SOL_RPC_URL,
-        secretBs58: secret,
-        mint,
-        toOwnerAddress: to,
-        amount,
-        decimals,
-      });
-      tokenAddrOut = mint;
-      tokenSymbol = "SPL";
-    } else {
-      txHash = await sendSolNative({
-        rpcUrl: env.SOL_RPC_URL,
-        secretBs58: secret,
-        to,
-        amountSol: amount,
-      });
-    }
 
-    await db.insert(transactions).values({
-      walletId: wallet.id,
-      chain: wallet.chain,
-      txHash,
-      kind: "send",
-      toAddress: to,
-      fromAddress: wallet.address,
-      direction: "outgoing",
-      amount,
-      tokenSymbol,
-      tokenAddress: tokenAddrOut,
+      await tx.insert(transactions).values({
+        walletId: wallet.id,
+        chain: wallet.chain,
+        txHash,
+        kind: "send",
+        toAddress: to,
+        fromAddress: wallet.address,
+        direction: "outgoing",
+        amount,
+        tokenSymbol,
+        tokenAddress: tokenAddrOut,
+      });
+
+      const recipientWallet = await tx
+        .select()
+        .from(wallets)
+        .where(eq(wallets.address, to))
+        .limit(1);
+
+      if (recipientWallet.length > 0) {
+        await recordLedgerEntries(
+          [
+            {
+              txHash,
+              walletId: wallet.id,
+              chain: wallet.chain,
+              entryType: "debit",
+              amount,
+              tokenSymbol,
+              tokenAddress: tokenAddrOut,
+            },
+            {
+              txHash,
+              walletId: recipientWallet[0].id,
+              chain: wallet.chain,
+              entryType: "credit",
+              amount,
+              tokenSymbol,
+              tokenAddress: tokenAddrOut,
+            },
+          ],
+          tx,
+        );
+      } else {
+        await recordLedgerEntries(
+          [
+            {
+              txHash,
+              walletId: wallet.id,
+              chain: wallet.chain,
+              entryType: "debit",
+              amount,
+              tokenSymbol,
+              tokenAddress: tokenAddrOut,
+            },
+          ],
+          tx,
+        );
+      }
+
+      return { transactionHash: txHash };
     });
 
-    // Check if recipient is an internal wallet
-    const recipientWallet = await db
-      .select()
-      .from(wallets)
-      .where(eq(wallets.address, to))
-      .limit(1);
-
-    if (recipientWallet.length > 0) {
-      // Internal transfer - record both debit and credit
-      await recordLedgerEntries([
-        {
-          txHash,
-          walletId: wallet.id,
-          chain: wallet.chain,
-          entryType: "debit",
-          amount,
-          tokenSymbol,
-          tokenAddress: tokenAddrOut,
-        },
-        {
-          txHash,
-          walletId: recipientWallet[0].id,
-          chain: wallet.chain,
-          entryType: "credit",
-          amount,
-          tokenSymbol,
-          tokenAddress: tokenAddrOut,
-        },
-      ]);
-    } else {
-      // External send - record debit only (credit to external)
-      await recordLedgerEntries([
-        {
-          txHash,
-          walletId: wallet.id,
-          chain: wallet.chain,
-          entryType: "debit",
-          amount,
-          tokenSymbol,
-          tokenAddress: tokenAddrOut,
-        },
-      ]);
+    if ("error" in result) {
+      return NextResponse.json(
+        { error: result.error },
+        { status: result.status },
+      );
     }
-
-    return NextResponse.json({ transactionHash: txHash });
+    return NextResponse.json(result);
   } catch (e) {
     const message = e instanceof Error ? e.message : "Transaction failed";
     return NextResponse.json({ error: message }, { status: 502 });

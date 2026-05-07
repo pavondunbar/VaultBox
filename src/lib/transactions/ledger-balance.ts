@@ -1,4 +1,5 @@
 import { db } from "@/lib/db";
+import type { DbContext } from "@/lib/db/types";
 import { ledgerEntries } from "@/lib/db/schema";
 import { eq, sql } from "drizzle-orm";
 
@@ -36,8 +37,9 @@ export async function verifyLedgerBalance(txHash: string): Promise<{
 export async function getWalletBalanceFromLedger(
   walletId: string,
   tokenAddress: string | null,
+  ctx: DbContext = db,
 ): Promise<string> {
-  const result = await db
+  const result = await ctx
     .select({
       balance: sql<string>`COALESCE(
         SUM(CASE WHEN ${ledgerEntries.entryType} = 'credit' THEN ${ledgerEntries.amount} ELSE '0' END)::numeric -

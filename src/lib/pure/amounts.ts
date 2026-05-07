@@ -42,3 +42,16 @@ export function parseHumanAmountToBigInt(
   const scale = 10n ** BigInt(decimals);
   return BigInt(whole) * scale + BigInt(fracPadded || "0");
 }
+
+/**
+ * Compare two non-negative decimal strings (e.g. "1.5" vs "0.75").
+ * Returns true if `a` is greater than or equal to `b`.
+ */
+export function numericGte(a: string, b: string): boolean {
+  const fracA = a.includes(".") ? a.split(".")[1].length : 0;
+  const fracB = b.includes(".") ? b.split(".")[1].length : 0;
+  const maxDecimals = Math.max(fracA, fracB);
+  const scaledA = parseHumanAmountToBigInt(a, maxDecimals);
+  const scaledB = parseHumanAmountToBigInt(b, maxDecimals);
+  return scaledA >= scaledB;
+}
