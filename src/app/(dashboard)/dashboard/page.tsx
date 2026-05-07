@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { desc, eq } from "drizzle-orm";
 import { getSessionUser } from "@/lib/auth/session";
 import { db } from "@/lib/db";
@@ -8,7 +9,7 @@ import { CreateWalletForm } from "@/components/CreateWalletForm";
 export default async function DashboardPage() {
   const user = await getSessionUser();
   if (!user) {
-    return null;
+    redirect("/login");
   }
 
   const owned = await db

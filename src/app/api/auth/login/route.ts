@@ -51,49 +51,58 @@ export async function POST(request: Request) {
   }
 
   const { email, password } = parsed.data;
-  const [user] = await db
-    .select()
-    .from(users)
-    .where(eq(users.email, email.toLowerCase()))
-    .limit(1);
 
-  if (!user || !(await verifyPassword(password, user.passwordHash))) {
-    logSecurityEvent({
-      timestamp: new Date().toISOString(),
-      event: "failed_login",
-      ip,
-      details: email.toLowerCase(),
-    });
-    return NextResponse.json(
-      { error: "Invalid email or password" },
-      { status: 401 },
-    );
-  }
+  try {
+    const [user] = await db
+      .select()
+      .from(users)
+      .where(eq(users.email, email.toLowerCase()))
+      .limit(1);
 
-  const jwtSecret = getJwtSecret();
+    if (!user || !(await verifyPassword(password, user.passwordHash))) {
+      logSecurityEvent({
+        timestamp: new Date().toISOString(),
+        event: "failed_login",
+        ip,
+        details: email.toLowerCase(),
+      });
+      return NextResponse.json(
+        { error: "Invalid email or password" },
+        { status: 401 },
+      );
+    }
 
-  if (user.totpEnabled) {
-    const tempToken = await signTwoFactorToken(
+    const jwtSecret = getJwtSecret();
+
+    if (user.totpEnabled) {
+      const tempToken = await signTwoFactorToken(
+        { sub: user.id, email: user.email },
+        jwtSecret,
+      );
+      return NextResponse.json({ requires2FA: true, tempToken });
+    }
+
+    const token = await signSessionToken(
       { sub: user.id, email: user.email },
       jwtSecret,
     );
-    return NextResponse.json({ requires2FA: true, tempToken });
+
+    const res = NextResponse.json({
+      user: { id: user.id, email: user.email },
+    });
+    res.cookies.set(getCookieName(), token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      path: "/",
+      maxAge: 60 * 60 * 24 * 7,
+    });
+    return res;
+  } catch (err) {
+    console.error("Login error:", err);
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 },
+    );
   }
-
-  const token = await signSessionToken(
-    { sub: user.id, email: user.email },
-    jwtSecret,
-  );
-
-  const res = NextResponse.json({
-    user: { id: user.id, email: user.email },
-  });
-  res.cookies.set(getCookieName(), token, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "lax",
-    path: "/",
-    maxAge: 60 * 60 * 24 * 7,
-  });
-  return res;
 }

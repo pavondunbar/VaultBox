@@ -38,53 +38,68 @@ export async function POST(request: Request) {
   }
 
   const { email, password } = parsed.data;
-  const existing = await db
-    .select({ id: users.id })
-    .from(users)
-    .where(eq(users.email, email.toLowerCase()))
-    .limit(1);
 
-  if (existing.length > 0) {
+  try {
+    const existing = await db
+      .select({ id: users.id })
+      .from(users)
+      .where(eq(users.email, email.toLowerCase()))
+      .limit(1);
+
+    if (existing.length > 0) {
+      return NextResponse.json(
+        { error: "An account with this email already exists" },
+        { status: 409 },
+      );
+    }
+
+    const passwordHash = await hashPassword(password);
+    const smtpConfigured = getSmtpEnv() !== null;
+    const verificationToken = crypto.randomUUID();
+    const verificationExpiry = new Date(
+      Date.now() + 24 * 60 * 60 * 1000,
+    );
+
+    const [created] = await db
+      .insert(users)
+      .values({
+        email: email.toLowerCase(),
+        passwordHash,
+        emailVerified: !smtpConfigured,
+        emailVerificationToken: smtpConfigured
+          ? verificationToken
+          : null,
+        emailVerificationExpiry: smtpConfigured
+          ? verificationExpiry
+          : null,
+      })
+      .returning({ id: users.id, email: users.email });
+
+    if (smtpConfigured) {
+      await sendVerificationEmail(created.email, verificationToken);
+    }
+
+    const token = await signSessionToken(
+      { sub: created.id, email: created.email },
+      getJwtSecret(),
+    );
+
+    const res = NextResponse.json({
+      user: { id: created.id, email: created.email },
+    });
+    res.cookies.set(getCookieName(), token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      path: "/",
+      maxAge: 60 * 60 * 24 * 7,
+    });
+    return res;
+  } catch (err) {
+    console.error("Registration error:", err);
     return NextResponse.json(
-      { error: "An account with this email already exists" },
-      { status: 409 },
+      { error: "Internal server error" },
+      { status: 500 },
     );
   }
-
-  const passwordHash = await hashPassword(password);
-  const smtpConfigured = getSmtpEnv() !== null;
-  const verificationToken = crypto.randomUUID();
-  const verificationExpiry = new Date(Date.now() + 24 * 60 * 60 * 1000);
-
-  const [created] = await db
-    .insert(users)
-    .values({
-      email: email.toLowerCase(),
-      passwordHash,
-      emailVerified: !smtpConfigured,
-      emailVerificationToken: smtpConfigured ? verificationToken : null,
-      emailVerificationExpiry: smtpConfigured ? verificationExpiry : null,
-    })
-    .returning({ id: users.id, email: users.email });
-
-  if (smtpConfigured) {
-    await sendVerificationEmail(created.email, verificationToken);
-  }
-
-  const token = await signSessionToken(
-    { sub: created.id, email: created.email },
-    getJwtSecret(),
-  );
-
-  const res = NextResponse.json({
-    user: { id: created.id, email: created.email },
-  });
-  res.cookies.set(getCookieName(), token, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "lax",
-    path: "/",
-    maxAge: 60 * 60 * 24 * 7,
-  });
-  return res;
 }

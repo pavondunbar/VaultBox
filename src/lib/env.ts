@@ -12,7 +12,8 @@ export type ServerEnv = z.infer<typeof serverEnvSchema>;
 
 export function getServerEnv(): ServerEnv {
   const parsed = serverEnvSchema.safeParse({
-    DATABASE_URL: process.env.DATABASE_URL,
+    DATABASE_URL:
+      process.env.DATABASE_URL ?? process.env.POSTGRES_URL,
     JWT_SECRET: process.env.JWT_SECRET,
     ENCRYPTION_KEY: process.env.ENCRYPTION_KEY,
     ETH_RPC_URL: process.env.ETH_RPC_URL,
