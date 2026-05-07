@@ -644,4 +644,4 @@ This project is licensed under the MIT License.
 
 ---
 
-Built with ❤️ for Fireblocks by [Pavon Dunbar](https://github.com/pavondunbar)
+Built with ❤️ by [Pavon Dunbar](https://github.com/pavondunbar)
