@@ -49,7 +49,7 @@ export default async function WalletPage({ params }: Props) {
 
       <WalletDetail
         walletId={wallet.id}
-        chain={wallet.chain as "ethereum" | "solana"}
+        chain={wallet.chain as "ethereum" | "solana" | "bitcoin"}
         role={role}
       />
     </div>

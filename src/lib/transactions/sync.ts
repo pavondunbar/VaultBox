@@ -4,6 +4,7 @@ import { transactions, wallets, type WalletRow } from "@/lib/db/schema";
 import { getServerEnv, getEtherscanApiKey } from "@/lib/env";
 import { fetchEthereumHistory } from "@/lib/chains/ethereum-history";
 import { fetchSolanaHistory } from "@/lib/chains/solana-history";
+import { fetchBitcoinHistory } from "@/lib/chains/bitcoin-history";
 import type { NormalizedTx } from "@/lib/chains/types";
 
 const STALE_THRESHOLD_MS = 2 * 60 * 1000;
@@ -24,6 +25,11 @@ async function fetchHistory(wallet: WalletRow): Promise<NormalizedTx[]> {
   if (wallet.chain === "solana") {
     const env = getServerEnv();
     return fetchSolanaHistory(env.SOL_RPC_URL, wallet.address);
+  }
+
+  if (wallet.chain === "bitcoin") {
+    const env = getServerEnv();
+    return fetchBitcoinHistory(env.BTC_API_URL, wallet.address);
   }
 
   return [];

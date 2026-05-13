@@ -36,6 +36,20 @@
       "when": 1778111150637,
       "tag": "0004_dizzy_wonder_man",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1778691643471,
+      "tag": "0005_living_jack_power",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1778698354495,
+      "tag": "0006_brave_dazzler",
+      "breakpoints": true
     }
   ]
 }

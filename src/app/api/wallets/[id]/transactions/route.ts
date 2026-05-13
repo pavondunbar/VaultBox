@@ -47,6 +47,7 @@ export async function GET(
       direction: transactions.direction,
       chain: transactions.chain,
       amount: transactions.amount,
+      status: transactions.status,
       tokenSymbol: transactions.tokenSymbol,
       tokenAddress: transactions.tokenAddress,
       createdAt: transactions.createdAt,

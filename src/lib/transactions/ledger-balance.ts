@@ -1,7 +1,7 @@
 import { db } from "@/lib/db";
 import type { DbContext } from "@/lib/db/types";
 import { ledgerEntries } from "@/lib/db/schema";
-import { eq, sql } from "drizzle-orm";
+import { and, eq, isNull, sql } from "drizzle-orm";
 
 export async function verifyLedgerBalance(txHash: string): Promise<{
   balanced: boolean;
@@ -42,13 +42,22 @@ export async function getWalletBalanceFromLedger(
   const result = await ctx
     .select({
       balance: sql<string>`COALESCE(
-        SUM(CASE WHEN ${ledgerEntries.entryType} = 'credit' THEN ${ledgerEntries.amount} ELSE '0' END)::numeric -
-        SUM(CASE WHEN ${ledgerEntries.entryType} = 'debit' THEN ${ledgerEntries.amount} ELSE '0' END)::numeric,
+        SUM(CASE WHEN ${ledgerEntries.entryType} = 'credit' THEN ${ledgerEntries.amount}::numeric ELSE 0 END) -
+        SUM(CASE WHEN ${ledgerEntries.entryType} = 'debit' THEN ${ledgerEntries.amount}::numeric ELSE 0 END),
         0
       )`.as("balance"),
     })
     .from(ledgerEntries)
-    .where(eq(ledgerEntries.walletId, walletId));
+    .where(
+      and(
+        eq(ledgerEntries.walletId, walletId),
+        tokenAddress
+          ? eq(ledgerEntries.tokenAddress, tokenAddress)
+          : isNull(ledgerEntries.tokenAddress),
+      ),
+    );
 
-  return result[0]?.balance ?? "0";
+  const raw = result[0]?.balance ?? "0";
+  // Clamp to "0" if ledger is in a negative state (debits > credits)
+  return raw.startsWith("-") ? "0" : raw;
 }

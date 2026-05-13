@@ -1,0 +1,1 @@
+ALTER TABLE "transactions" ADD COLUMN "status" text DEFAULT 'confirmed' NOT NULL;

@@ -2,7 +2,9 @@
        test test-unit lint typecheck integrity \
        db-create db-push db-generate db-studio shell-pg \
        db-users db-wallets db-transactions db-shares db-ledger db-ledger-balance db-wallet-balances \
-       health clean nuke logs demo open-docs
+       health clean nuke logs demo open-docs \
+       rbf-help rbf-replace rbf-pending \
+       btc-help btc-balance
 
 # ──────────────────────────────────────────────
 # VenCura — Custodial Wallet Platform
@@ -165,6 +167,81 @@ db-wallet-balances: ## Show wallet balances derived from ledger
 		GROUP BY u.email, w.id, w.chain, w.address, w.label, le.token_symbol \
 		HAVING COUNT(le.id) > 0 \
 		ORDER BY u.email, w.chain;"
+
+# ── RBF (Replace-By-Fee) ─────────────────────
+
+rbf-help: ## Show RBF usage instructions
+	@printf '\n\033[36mRBF (Replace-By-Fee) — Speed up pending Ethereum transactions\033[0m\n\n'
+	@echo '  Replaces a stuck (pending) transaction by resubmitting with the SAME nonce'
+	@echo '  but HIGHER gas fees. The network drops the old tx and mines the new one.'
+	@echo ''
+	@echo '  Requirements:'
+	@echo '    • The original transaction must still be pending (unconfirmed)'
+	@echo '    • New maxFeePerGas must be higher than the original'
+	@echo '    • Gas values are in wei (e.g. 30 Gwei = 30000000000)'
+	@echo ''
+	@echo '  Workflow:'
+	@echo '    1. Send a transaction that gets stuck (low gas)'
+	@echo '    2. Replace it:  make rbf-replace WALLET=<id> TX=<hash> FEE=<wei> TIP=<wei>'
+	@echo '    3. Check status: make rbf-pending ADDR=<0x...>'
+	@echo ''
+	@echo '  The UI also shows a "Speed Up" button on pending transactions.'
+	@echo ''
+
+rbf-replace: ## Replace a pending tx with higher gas. Usage: make rbf-replace WALLET=<id> TX=<hash> FEE=<maxFeeWei> TIP=<priorityFeeWei>
+	@if [ -z "$(WALLET)" ] || [ -z "$(TX)" ] || [ -z "$(FEE)" ] || [ -z "$(TIP)" ]; then \
+		echo "Usage: make rbf-replace WALLET=<wallet-id> TX=<original-tx-hash> FEE=<maxFeePerGas-wei> TIP=<maxPriorityFeePerGas-wei>"; \
+		echo "Example: make rbf-replace WALLET=abc-123 TX=0xdead... FEE=30000000000 TIP=2000000000"; \
+		exit 1; \
+	fi
+	@curl -s -X POST $(APP_URL)/api/wallets/$(WALLET)/rbf \
+		-H 'Content-Type: application/json' \
+		-b /tmp/vencura-cookie.txt \
+		-d '{"originalTxHash":"$(TX)","maxFeePerGas":"$(FEE)","maxPriorityFeePerGas":"$(TIP)"}' | \
+		python3 -m json.tool 2>/dev/null || cat
+
+rbf-pending: ## Show recent Ethereum transactions for a wallet. Usage: make rbf-pending ADDR=<0x...>
+	@if [ -z "$(ADDR)" ]; then \
+		echo "Usage: make rbf-pending ADDR=<0x-address>"; \
+		exit 1; \
+	fi
+	@. ./.env 2>/dev/null; \
+	echo "Checking txs for $(ADDR) on Sepolia..."; \
+	curl -s "https://api-sepolia.etherscan.io/api?module=account&action=txlist&address=$(ADDR)&startblock=0&endblock=99999999&sort=desc&page=1&offset=5$${ETHERSCAN_API_KEY:+&apikey=$$ETHERSCAN_API_KEY}" | \
+		python3 -c "import sys,json;data=json.load(sys.stdin);[print(f\"nonce={t['nonce']} hash={t['hash'][:20]}... gasPrice={int(t['gasPrice'])//10**9}gwei status={'✓' if t['txreceipt_status']=='1' else '⏳' if t['txreceipt_status']=='' else '✗'}\") for t in data.get('result',[])]" 2>/dev/null || echo "Could not fetch transactions."
+
+# ── Bitcoin (Testnet) ─────────────────────────
+
+btc-help: ## Show Bitcoin testnet usage instructions
+	@printf '\n\033[36mBitcoin (Testnet) — Native BTC on Bitcoin Testnet\033[0m\n\n'
+	@echo '  VenCura creates SegWit (bech32/tb1) wallets on Bitcoin Testnet.'
+	@echo ''
+	@echo '  Faucets:'
+	@echo '    • https://coinfaucet.eu/en/btc-testnet/'
+	@echo '    • https://bitcoinfaucet.uo1.net/'
+	@echo '    • https://testnet-faucet.com/btc-testnet/'
+	@echo ''
+	@echo '  Explorer:'
+	@echo '    • https://mempool.space/testnet'
+	@echo ''
+	@echo '  Check balance via CLI:'
+	@echo '    make btc-balance ADDR=<tb1...>'
+	@echo ''
+
+btc-balance: ## Check Bitcoin testnet balance. Usage: make btc-balance ADDR=<tb1...>
+	@if [ -z "$(ADDR)" ]; then \
+		echo "Usage: make btc-balance ADDR=<tb1-address>"; \
+		exit 1; \
+	fi
+	@. ./.env 2>/dev/null; \
+	API_URL=$${BTC_API_URL:-https://blockstream.info/testnet/api}; \
+	echo "Fetching balance for $(ADDR)..."; \
+	STATS=$$(curl -sf "$$API_URL/address/$(ADDR)") && \
+	FUNDED=$$(echo "$$STATS" | python3 -c "import sys,json;d=json.load(sys.stdin);print(d['chain_stats']['funded_txo_sum']+d['mempool_stats']['funded_txo_sum'])" 2>/dev/null) && \
+	SPENT=$$(echo "$$STATS" | python3 -c "import sys,json;d=json.load(sys.stdin);print(d['chain_stats']['spent_txo_sum']+d['mempool_stats']['spent_txo_sum'])" 2>/dev/null) && \
+	SATS=$$((FUNDED - SPENT)) && \
+	printf "Balance: %s satoshis (%.8f BTC)\n" "$$SATS" $$(echo "scale=8; $$SATS / 100000000" | bc) \
+	|| echo "Could not fetch balance. Is the address valid?"
 
 # ── Health ───────────────────────────────────
 

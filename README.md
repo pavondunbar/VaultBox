@@ -3,7 +3,7 @@
 > **SANDBOX / EDUCATIONAL USE ONLY — NOT FOR PRODUCTION**
 > This codebase is a reference implementation designed for learning, prototyping, and architectural exploration. It is **not audited, not legally reviewed, and must not be used to custody real funds, manage real private keys, or process real financial transactions.** See the [Production Warning](#production-warning) section for full details.
 
-Full-stack custodial wallet platform for **Ethereum Sepolia** and **Solana Devnet**. Users register, create multi-chain wallets, fetch balances (native + ERC-20 / SPL tokens), sign messages, send on-chain transactions, transfer funds between their own wallets, view on-chain transaction history (inbound + outbound), and share wallets with other users via role-based access control — all through a web UI and REST API backed by AES-256-GCM encrypted key storage, JWT session management, TOTP-based two-factor authentication, and email verification.
+Full-stack custodial wallet platform for **Ethereum Sepolia**, **Solana Devnet**, and **Bitcoin Testnet**. Users register, create multi-chain wallets, fetch balances (native + ERC-20 / SPL tokens), sign messages, send on-chain transactions, speed up pending Ethereum transactions via Replace-By-Fee (RBF), transfer funds between their own wallets, view on-chain transaction history (inbound + outbound) with real-time status tracking, and share wallets with other users via role-based access control — all through a web UI and REST API backed by AES-256-GCM encrypted key storage, JWT session management, TOTP-based two-factor authentication, and email verification.
 
 ---
 
@@ -32,18 +32,18 @@ Full-stack custodial wallet platform for **Ethereum Sepolia** and **Solana Devne
 |-----------|--------|
 | Framework | Next.js 15 (App Router) + React 19 + TypeScript |
 | Database | PostgreSQL + Drizzle ORM |
-| Chains | Ethereum Sepolia (Viem) + Solana Devnet (@solana/web3.js) |
+| Chains | Ethereum Sepolia (Viem) + Solana Devnet (@solana/web3.js) + Bitcoin Testnet (bitcoinjs-lib) |
 | Encryption | AES-256-GCM for private keys at rest |
 | Sessions | JWT in httpOnly cookies (jose) |
 | Authentication | Email/password + TOTP 2FA (otpauth) + email verification (nodemailer) |
 | Security | Rate limiting, CSP headers, HSTS, bcryptjs password hashing |
 | Ledger | Double-entry accounting (debits = credits) with advisory locking |
-| Tests | Vitest (13 unit test files — no DB or RPC required) |
+| Tests | Vitest (15 unit test files — no DB or RPC required) |
 | Package Manager | pnpm |
 
 VenCura implements the core backend logic of a **custodial cryptocurrency wallet platform** — the kind of infrastructure that underpins institutional digital asset custody services, fintech wallet products, and crypto-native banking platforms.
 
-The system handles the full wallet lifecycle: account registration with email verification, multi-chain wallet creation (Ethereum and Solana), private key generation and encrypted storage, balance queries across native and token assets, message signing, on-chain transaction submission, internal transfers between a user's own wallets, on-chain transaction history synced from block explorers (Etherscan for Ethereum, Solana RPC for Solana), and role-based wallet sharing with other registered users.
+The system handles the full wallet lifecycle: account registration with email verification, multi-chain wallet creation (Ethereum, Solana, and Bitcoin), private key generation and encrypted storage, balance queries across native and token assets, message signing, on-chain transaction submission, Replace-By-Fee (RBF) for speeding up pending Ethereum transactions, internal transfers between a user's own wallets, on-chain transaction history synced from block explorers (Etherscan for Ethereum, Solana RPC for Solana, Blockstream API for Bitcoin), transaction status tracking with reconciliation, and role-based wallet sharing with other registered users.
 
 Every private key is encrypted with **AES-256-GCM** using a dedicated 256-bit master key before being stored in PostgreSQL. Sessions are managed via **JWT tokens** in `httpOnly` cookies to prevent XSS-based token theft. Optional **TOTP two-factor authentication** adds a second layer of identity verification. Rate limiting protects sensitive endpoints (login, 2FA, email verification) from brute-force attacks. All transactions are recorded using **double-entry accounting** in an append-only ledger where debits and credits always offset to zero.
 
@@ -91,9 +91,9 @@ The core challenge is securing private keys at rest while making them available 
                     │ JWT/TOTP  │ │ AES-256-GCM│ │ Viem (ETH) │
                     │ bcryptjs  │ │ encrypt/   │ │ web3.js    │
                     │ Sessions  │ │ decrypt    │ │ (SOL)      │
-                    └─────┬─────┘ └─────┬──────┘ └─────┬──────┘
-                          │             │              │
-                          ▼             ▼              ▼
+                    └─────┬─────┘ └─────┬──────┘ │ bitcoinjs  │
+                          │             │        │ (BTC)      │
+                          ▼             ▼        └─────┬──────┘
                     ┌──────────────────────────────────────┐
                     │          PostgreSQL (Drizzle ORM)     │
                     │                                      │
@@ -103,12 +103,12 @@ The core challenge is securing private keys at rest while making them available 
                     └──────────────────────────────────────┘
                                       │
                     ┌─────────────────┼─────────────────┐
-                    ▼                                   ▼
-            ┌──────────────┐                   ┌──────────────┐
-            │   Ethereum   │                   │    Solana    │
-            │   Sepolia    │                   │    Devnet    │
-            │  (Testnet)   │                   │  (Testnet)   │
-            └──────────────┘                   └──────────────┘
+                    ▼                 ▼                 ▼
+            ┌──────────────┐  ┌──────────────┐  ┌──────────────┐
+            │   Ethereum   │  │    Solana    │  │   Bitcoin    │
+            │   Sepolia    │  │    Devnet    │  │   Testnet    │
+            │  (Testnet)   │  │  (Testnet)   │  │  (Testnet)   │
+            └──────────────┘  └──────────────┘  └──────────────┘
 ```
 
 **Request Flow:**
@@ -129,10 +129,10 @@ Handles user registration, login, session management, email verification, and TO
 Encrypts and decrypts private keys using AES-256-GCM with a 256-bit master key (`ENCRYPTION_KEY`). Each encryption produces a unique 12-byte IV and 16-byte authentication tag. The ciphertext, IV, and tag are stored as a single base64-encoded blob in the database.
 
 ### Chain Adapters (`src/lib/chains/`)
-Abstraction layer for multi-chain operations. The Ethereum adapter uses Viem to interact with Sepolia — wallet creation, balance queries (native ETH + ERC-20), message signing, and transaction submission. The Solana adapter uses @solana/web3.js and @solana/spl-token for Devnet — wallet creation, SOL + SPL token balances, signing, and transfers.
+Abstraction layer for multi-chain operations. The Ethereum adapter uses Viem to interact with Sepolia — wallet creation, balance queries (native ETH + ERC-20), message signing, and transaction submission. The Solana adapter uses @solana/web3.js and @solana/spl-token for Devnet — wallet creation, SOL + SPL token balances, signing, and transfers. The Bitcoin adapter uses bitcoinjs-lib with ecpair and tiny-secp256k1 for Testnet — SegWit (P2WPKH/bech32) wallet creation, UTXO-based balance queries, ECDSA message signing, and PSBT-based transaction construction and broadcasting via Blockstream Esplora API.
 
 ### Transaction History Sync (`src/lib/transactions/sync.ts`)
-Automatically syncs on-chain transaction history when a wallet's history is viewed and the cached data is stale (older than 2 minutes). Ethereum history is fetched from the Etherscan Sepolia API (native ETH + ERC-20 token transfers). Solana history is fetched directly from the RPC node (SOL system transfers + SPL token transfers). Transactions are deduplicated by `(txHash, walletId, direction)` and stored in the database for fast retrieval. Both inbound and outbound transactions are tracked.
+Automatically syncs on-chain transaction history when a wallet's history is viewed and the cached data is stale (older than 2 minutes). Ethereum history is fetched from the Etherscan Sepolia API (native ETH + ERC-20 token transfers). Solana history is fetched directly from the RPC node (SOL system transfers + SPL token transfers). Bitcoin history is fetched from the Blockstream Esplora API (native BTC transfers). Transactions are deduplicated by `(txHash, walletId, direction)` and stored in the database for fast retrieval. Both inbound and outbound transactions are tracked.
 
 ### Double-Entry Ledger (`src/lib/transactions/ledger.ts`)
 All transactions are recorded using double-entry accounting principles. Every transfer creates a balanced pair of entries: a **debit** (reduction) on the source wallet and a **credit** (addition) on the destination wallet. For external sends (to addresses outside the platform), only a debit is recorded. The `ledger_entries` table is append-only — entries are never modified or deleted. The `verifyLedgerBalance()` function can audit that debits equal credits for any transaction.
@@ -148,6 +148,12 @@ Next.js middleware that validates JWT sessions on protected routes (`/dashboard`
 
 ### Environment Validation (`src/lib/env.ts`)
 Strict Zod schema that validates all required environment variables at startup. `JWT_SECRET` must be at least 32 characters. `ENCRYPTION_KEY` must be exactly 64 hex characters (256-bit key). Fails fast with actionable error messages if configuration is invalid.
+
+### Replace-By-Fee (`src/lib/transactions/rbf.ts`)
+Allows users to speed up stuck Ethereum transactions by resubmitting with the same nonce but higher EIP-1559 gas fees. The `isTxPending()` function checks whether a transaction has been mined. The `replaceTransaction()` function fetches the original transaction, extracts its nonce, and resubmits with higher `maxFeePerGas` and `maxPriorityFeePerGas`. Supports both simple ETH transfers and contract interactions (replays the original calldata). Records replacements in the `rbf_transactions` table for audit trail.
+
+### Transaction Reconciliation (`src/lib/transactions/reconcile.ts`)
+Batch-checks all pending transactions against their respective blockchains and updates their status to `confirmed` or `failed`. Ethereum transactions are checked via `getTransactionReceipt` (status 1 = success, status 0 = revert). Solana transactions are checked via `getSignatureStatuses` RPC. Bitcoin transactions are checked via the Blockstream `/tx/{txid}/status` endpoint. Triggered via `POST /api/admin/reconcile`.
 
 ---
 
@@ -166,7 +172,13 @@ Optional per-user TOTP (Time-based One-Time Password) using the otpauth library.
 Chain-specific logic is isolated behind a common interface (`src/lib/chains/types.ts`). Adding a new chain requires implementing the adapter interface — wallet creation, balance query, signing, and transaction submission — without modifying the API routes or middleware.
 
 ### On-Chain Transaction History
-Transaction history is synced from external sources — Etherscan API for Ethereum Sepolia (native + ERC-20) and Solana RPC for Devnet (system + SPL transfers). The sync is lazy: history is fetched when a user views their transactions and the last sync is older than 2 minutes. Both incoming and outgoing transactions are normalized into a common format and deduplicated on insert. An optional `ETHERSCAN_API_KEY` increases Etherscan rate limits.
+Transaction history is synced from external sources — Etherscan API for Ethereum Sepolia (native + ERC-20), Solana RPC for Devnet (system + SPL transfers), and Blockstream Esplora API for Bitcoin Testnet (native BTC). The sync is lazy: history is fetched when a user views their transactions and the last sync is older than 2 minutes. Both incoming and outgoing transactions are normalized into a common format and deduplicated on insert. An optional `ETHERSCAN_API_KEY` increases Etherscan rate limits.
+
+### Replace-By-Fee (RBF)
+Ethereum transactions that are stuck in the mempool (pending) can be replaced by resubmitting with the same nonce but higher gas fees. The UI shows a "Speed Up" button on pending outgoing Ethereum transactions. The replacement uses EIP-1559 parameters (`maxFeePerGas` and `maxPriorityFeePerGas` in wei). The system validates that the original transaction is still pending before allowing replacement. All replacements are recorded in the `rbf_transactions` table for audit trail.
+
+### Transaction Status Tracking
+All outgoing transactions submitted by the platform are recorded with a `status` field: `pending` → `confirmed` or `failed`. Transactions synced from chain explorers default to `confirmed`. The status is displayed in the transaction history UI with color coding. A reconciliation endpoint (`POST /api/admin/reconcile`) batch-checks all pending transactions against their respective blockchains and updates their status.
 
 ### Shared Wallets
 Wallet owners can share wallets with other registered users by email. Shared access uses a role-based model:
@@ -210,7 +222,7 @@ The `/send` and `/transfer` endpoints wrap all database operations (balance chec
 |--------|------|-------------|
 | `id` | UUID PK | Wallet identifier |
 | `userId` | UUID FK | Owner (cascade delete) |
-| `chain` | VARCHAR | `ethereum` or `solana` |
+| `chain` | VARCHAR | `ethereum`, `solana`, or `bitcoin` |
 | `address` | VARCHAR | On-chain public address |
 | `encryptedPrivateKey` | TEXT | AES-256-GCM encrypted key blob |
 | `label` | VARCHAR (nullable) | User-defined wallet name |
@@ -222,13 +234,14 @@ The `/send` and `/transfer` endpoints wrap all database operations (balance chec
 |--------|------|-------------|
 | `id` | UUID PK | Transaction record identifier |
 | `walletId` | UUID FK | Source wallet (cascade delete) |
-| `chain` | VARCHAR | `ethereum` or `solana` |
+| `chain` | VARCHAR | `ethereum`, `solana`, or `bitcoin` |
 | `txHash` | VARCHAR | On-chain transaction hash |
 | `kind` | VARCHAR | `send`, `receive`, or `transfer` |
 | `toAddress` | VARCHAR | Destination address |
 | `fromAddress` | VARCHAR (nullable) | Source address |
 | `direction` | VARCHAR | `incoming` or `outgoing` (default: `outgoing`) |
 | `amount` | VARCHAR | Amount as string (precision-safe) |
+| `status` | VARCHAR | `pending`, `confirmed`, or `failed` (default: `confirmed`) |
 | `tokenSymbol` | VARCHAR (nullable) | Token symbol (ETH, SOL, USDC, etc.) |
 | `tokenAddress` | VARCHAR (nullable) | ERC-20 contract address or SPL mint |
 | `createdAt` | TIMESTAMP | Record creation time |
@@ -252,7 +265,7 @@ Unique index on `(walletId, userId)` — a wallet can only be shared once with e
 | `id` | UUID PK | Entry identifier |
 | `txHash` | VARCHAR | On-chain transaction hash |
 | `walletId` | UUID FK | Wallet affected (cascade delete) |
-| `chain` | VARCHAR | `ethereum` or `solana` |
+| `chain` | VARCHAR | `ethereum`, `solana`, or `bitcoin` |
 | `entryType` | VARCHAR | `debit` or `credit` |
 | `amount` | VARCHAR | Amount as string (precision-safe) |
 | `tokenSymbol` | VARCHAR (nullable) | Token symbol (ETH, SOL, USDC, etc.) |
@@ -260,6 +273,22 @@ Unique index on `(walletId, userId)` — a wallet can only be shared once with e
 | `createdAt` | TIMESTAMP | Entry creation time |
 
 Unique index on `(txHash, walletId, entryType)` prevents duplicate entries. The ledger is append-only — entries are never modified or deleted.
+
+### `rbf_transactions`
+| Column | Type | Description |
+|--------|------|-------------|
+| `id` | UUID PK | RBF record identifier |
+| `walletId` | UUID FK | Wallet that initiated the replacement (cascade delete) |
+| `originalTxHash` | VARCHAR | Hash of the original pending transaction |
+| `replacementTxHash` | VARCHAR | Hash of the replacement transaction |
+| `nonce` | VARCHAR | Shared nonce between original and replacement |
+| `originalGasPrice` | VARCHAR | Original transaction's gas price (wei) |
+| `newGasPrice` | VARCHAR | Replacement transaction's gas price (wei) |
+| `toAddress` | VARCHAR | Destination address |
+| `amount` | VARCHAR | Transaction value (wei) |
+| `tokenAddress` | VARCHAR (nullable) | ERC-20 contract address if token transfer |
+| `status` | VARCHAR | `pending`, `confirmed`, or `failed` (default: `pending`) |
+| `createdAt` | TIMESTAMP | Record creation time |
 
 ---
 
@@ -292,7 +321,7 @@ All wallet endpoints require an authenticated session (httpOnly JWT cookie from 
 | Method | Path | Body / Query | Description |
 |--------|------|--------------|-------------|
 | `GET` | `/api/wallets` | — | List all user wallets |
-| `POST` | `/api/wallets` | `{ chain, label? }` | Create wallet (`ethereum` or `solana`) |
+| `POST` | `/api/wallets` | `{ chain, label? }` | Create wallet (`ethereum`, `solana`, or `bitcoin`) |
 | `GET` | `/api/wallets/:id/balance` | `?token=` (ERC-20) or `?mint=` (SPL) | Get balance (omit params for native) |
 | `POST` | `/api/wallets/:id/sign` | `{ message }` | Sign message → `{ signedMessage }` |
 | `POST` | `/api/wallets/:id/send` | `{ to, amount, tokenAddress?, mint? }` | Send on-chain → `{ transactionHash }` |
@@ -306,6 +335,18 @@ All wallet endpoints require an authenticated session (httpOnly JWT cookie from 
 | `GET` | `/api/wallets/:id/shares` | — | List users this wallet is shared with (owner only) |
 | `POST` | `/api/wallets/:id/shares` | `{ email, role }` | Invite user by email (`viewer` or `editor`) — user must be registered |
 | `DELETE` | `/api/wallets/:id/shares/:shareId` | — | Revoke shared access (owner only) |
+
+### Replace-By-Fee (RBF)
+
+| Method | Path | Body | Description |
+|--------|------|------|-------------|
+| `POST` | `/api/wallets/:id/rbf` | `{ originalTxHash, maxFeePerGas, maxPriorityFeePerGas }` | Replace pending Ethereum tx with higher gas (values in wei) |
+
+### Admin
+
+| Method | Path | Body | Description |
+|--------|------|------|-------------|
+| `POST` | `/api/admin/reconcile` | — | Reconcile all pending transactions (check on-chain status) |
 
 See `examples/api-client-example.ts` for a minimal `fetch`-based API client.
 
@@ -325,13 +366,16 @@ From the dashboard, create Ethereum (Sepolia) or Solana (Devnet) wallets. Each w
 ### 4. Fund via Testnet Faucets
 - **ETH Sepolia:** Fund the displayed address from [sepoliafaucet.com](https://sepoliafaucet.com) or a similar faucet
 - **SOL Devnet:** `solana airdrop 1 <address> --url devnet`
+- **BTC Testnet:** Use [coinfaucet.eu/en/btc-testnet](https://coinfaucet.eu/en/btc-testnet/) or similar faucet
 
 ### 5. Transact
-- **Balance** — query native (ETH/SOL) or token balances (ERC-20 contract address or SPL mint)
+- **Balance** — query native (ETH/SOL/BTC) or token balances (ERC-20 contract address or SPL mint)
 - **Sign** — sign an arbitrary message with the wallet's private key
 - **Send** — submit an on-chain transaction to any address (native or token transfer)
+- **Speed Up (RBF)** — replace a pending Ethereum transaction with higher gas fees via the "Speed Up" button
 - **Transfer** — move funds between your own wallets (settles on-chain)
-- **History** — view on-chain transaction history (both inbound and outbound, auto-synced from Etherscan / Solana RPC)
+- **History** — view on-chain transaction history (both inbound and outbound, auto-synced from Etherscan / Solana RPC / Blockstream)
+- **Status** — transactions show real-time status (pending → confirmed or failed)
 
 ### 6. Share Wallets
 From the wallet detail page, owners can share wallets with other registered users by entering their email address and selecting a role:
@@ -392,6 +436,7 @@ Open [http://localhost:3000](http://localhost:3000).
 | `ENCRYPTION_KEY` | Yes | `openssl rand -hex 32` → 64 hex characters (256-bit key) |
 | `ETH_RPC_URL` | Yes | Sepolia RPC endpoint (Infura, Alchemy, etc.) |
 | `SOL_RPC_URL` | No | Defaults to `https://api.devnet.solana.com` |
+| `BTC_API_URL` | Yes | Blockstream Esplora API URL (default: `https://blockstream.info/testnet/api`) |
 | `ETHERSCAN_API_KEY` | No | Etherscan API key for higher rate limits on transaction history sync |
 | `APP_URL` | No | Defaults to `http://localhost:3000` |
 | `SMTP_HOST` | No | SMTP server for email verification |
@@ -459,6 +504,21 @@ Open [http://localhost:3000](http://localhost:3000).
 | `make nuke` | Remove all generated files and `node_modules` |
 | `make open-docs` | Open README in browser |
 
+### RBF (Replace-By-Fee)
+
+| Command | Description |
+|---------|-------------|
+| `make rbf-help` | Show RBF usage instructions |
+| `make rbf-replace WALLET=<id> TX=<hash> FEE=<wei> TIP=<wei>` | Replace a pending tx with higher gas |
+| `make rbf-pending ADDR=<0x...>` | Show recent Ethereum transactions for a wallet |
+
+### Bitcoin (Testnet)
+
+| Command | Description |
+|---------|-------------|
+| `make btc-help` | Show Bitcoin testnet usage instructions |
+| `make btc-balance ADDR=<tb1...>` | Check Bitcoin testnet balance via Blockstream API |
+
 ---
 
 ## Testing
@@ -481,11 +541,13 @@ pnpm exec vitest --coverage
 |------|--------------|
 | `addresses.test.ts` | Ethereum and Solana address validation |
 | `amounts.test.ts` | Amount conversion (native decimals, wei, lamports) |
+| `bitcoin.test.ts` | Bitcoin wallet creation, address validation, satoshi formatting, signing |
 | `env.test.ts` | Environment variable parsing and validation |
 | `ethereum-history.test.ts` | Etherscan transaction history fetching and normalization |
 | `jwt.test.ts` | JWT token creation and verification |
 | `password.test.ts` | bcryptjs password hashing and comparison |
 | `rate-limit.test.ts` | Sliding-window rate limiter logic |
+| `rbf.test.ts` | Replace-By-Fee transaction replacement logic |
 | `solana-history.test.ts` | Solana RPC transaction history parsing and normalization |
 | `sync.test.ts` | Stale-sync detection and transaction deduplication logic |
 | `ledger.test.ts` | Double-entry ledger debit/credit pair creation |
@@ -526,6 +588,7 @@ VENCURA/
 │   │   │           ├── sign/route.ts     # Message signing
 │   │   │           ├── transfer/route.ts # Internal transfer
 │   │   │           ├── transactions/route.ts  # Transaction history (auto-synced)
+│   │   │           ├── rbf/route.ts      # Replace-By-Fee (speed up pending ETH tx)
 │   │   │           └── shares/
 │   │   │               ├── route.ts      # List + invite wallet shares
 │   │   │               └── [shareId]/route.ts  # Revoke share
@@ -555,6 +618,8 @@ VENCURA/
 │   │   │   ├── ethereum-history.ts       # Etherscan transaction history
 │   │   │   ├── solana.ts                 # @solana/web3.js (Devnet)
 │   │   │   ├── solana-history.ts         # Solana RPC transaction history
+│   │   │   ├── bitcoin.ts               # bitcoinjs-lib (Testnet)
+│   │   │   ├── bitcoin-history.ts        # Blockstream Esplora transaction history
 │   │   │   └── types.ts                  # Chain-agnostic interface + NormalizedTx
 │   │   ├── crypto/
 │   │   │   └── vault.ts                  # AES-256-GCM encrypt/decrypt
@@ -569,12 +634,14 @@ VENCURA/
 │   │   ├── transactions/
 │   │   │   ├── sync.ts                   # Stale-check + sync from chain explorers
 │   │   │   ├── ledger.ts                 # Double-entry ledger recording
-│   │   │   └── ledger-balance.ts         # Ledger balance verification
+│   │   │   ├── ledger-balance.ts         # Ledger balance verification
+│   │   │   ├── rbf.ts                    # Replace-By-Fee logic (Ethereum)
+│   │   │   └── reconcile.ts             # Pending transaction reconciliation
 │   │   ├── wallets/
 │   │   │   ├── access.ts                 # Role-based authorization (owner/editor/viewer)
 │   │   │   └── key.ts                    # Key management
 │   │   ├── validation/
-│   │   │   └── addresses.ts              # Address validation (ETH + SOL)
+│   │   │   └── addresses.ts              # Address validation (ETH + SOL + BTC)
 │   │   ├── pure/
 │   │   │   └── amounts.ts                # Amount conversion utilities
 │   │   └── env.ts                        # Environment variable parsing (Zod)
@@ -584,11 +651,13 @@ VENCURA/
 ├── tests/                                # Vitest unit tests
 │   ├── addresses.test.ts
 │   ├── amounts.test.ts
+│   ├── bitcoin.test.ts
 │   ├── env.test.ts
 │   ├── ethereum-history.test.ts
 │   ├── jwt.test.ts
 │   ├── password.test.ts
 │   ├── rate-limit.test.ts
+│   ├── rbf.test.ts
 │   ├── solana-history.test.ts
 │   ├── sync.test.ts
 │   ├── ledger.test.ts
@@ -602,6 +671,8 @@ VENCURA/
 │   ├── 0002_quiet_juggernaut.sql         # Wallet sync timestamp
 │   ├── 0003_mute_captain_cross.sql       # Wallet shares table
 │   ├── 0004_dizzy_wonder_man.sql         # Ledger entries table
+│   ├── 0005_living_jack_power.sql        # RBF transactions table
+│   ├── 0006_add_transaction_status.sql   # Transaction status column
 │   └── meta/                             # Drizzle metadata
 │
 ├── examples/
@@ -641,6 +712,8 @@ VENCURA/
 | Regulatory compliance (MiCA, state MTL, FinCEN MSB) | No licensing, no SAR filing, no compliance reporting |
 | SOC 2 / ISO 27001 controls | No formal security controls framework |
 | Solana precision handling | Floating-point lamport conversion — production systems should use integer lamports end-to-end |
+| Bitcoin fee estimation | Fixed 1000-satoshi fee — production systems need dynamic fee estimation from mempool data |
+| UTXO management / coin control | Naive UTXO selection — production needs optimized coin selection, dust management, and UTXO consolidation |
 
 > Building a production custodial wallet requires: licensed money transmission or e-money status, HSM or MPC infrastructure with certified key management, hot/cold wallet segregation, multi-signature approval workflows, real-time chain monitoring, regulatory compliance programs, SOC 2 Type II certification, and incident response procedures. **Do not use this code to custody, manage, or transfer real digital assets or funds.**
 

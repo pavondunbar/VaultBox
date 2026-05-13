@@ -46,6 +46,7 @@ export const transactions = pgTable(
     fromAddress: text("from_address"),
     direction: text("direction").notNull().default("outgoing"),
     amount: text("amount").notNull(),
+    status: text("status").notNull().default("confirmed"), // pending, confirmed, failed
     tokenSymbol: text("token_symbol"),
     tokenAddress: text("token_address"),
     createdAt: timestamp("created_at").defaultNow().notNull(),
@@ -104,8 +105,26 @@ export const walletShares = pgTable(
   ],
 );
 
+export const rbfTransactions = pgTable("rbf_transactions", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  walletId: uuid("wallet_id")
+    .references(() => wallets.id, { onDelete: "cascade" })
+    .notNull(),
+  originalTxHash: text("original_tx_hash").notNull(),
+  replacementTxHash: text("replacement_tx_hash").notNull(),
+  nonce: text("nonce").notNull(),
+  originalGasPrice: text("original_gas_price").notNull(),
+  newGasPrice: text("new_gas_price").notNull(),
+  toAddress: text("to_address").notNull(),
+  amount: text("amount").notNull(),
+  tokenAddress: text("token_address"),
+  status: text("status").notNull().default("pending"), // pending, confirmed, failed
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
 export type User = typeof users.$inferSelect;
 export type WalletRow = typeof wallets.$inferSelect;
 export type TransactionRow = typeof transactions.$inferSelect;
 export type WalletShareRow = typeof walletShares.$inferSelect;
 export type LedgerEntryRow = typeof ledgerEntries.$inferSelect;
+export type RbfTransactionRow = typeof rbfTransactions.$inferSelect;

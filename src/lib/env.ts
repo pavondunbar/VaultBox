@@ -6,6 +6,7 @@ const serverEnvSchema = z.object({
   ENCRYPTION_KEY: z.string().regex(/^[0-9a-fA-F]{64}$/),
   ETH_RPC_URL: z.string().url(),
   SOL_RPC_URL: z.string().url(),
+  BTC_API_URL: z.string().url(),
 });
 
 export type ServerEnv = z.infer<typeof serverEnvSchema>;
@@ -18,6 +19,7 @@ export function getServerEnv(): ServerEnv {
     ENCRYPTION_KEY: process.env.ENCRYPTION_KEY,
     ETH_RPC_URL: process.env.ETH_RPC_URL,
     SOL_RPC_URL: process.env.SOL_RPC_URL,
+    BTC_API_URL: process.env.BTC_API_URL ?? process.env.BTC_RPC_URL,
   });
   if (!parsed.success) {
     throw new Error(`Invalid environment: ${parsed.error.message}`);

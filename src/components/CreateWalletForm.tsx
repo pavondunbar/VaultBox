@@ -5,7 +5,7 @@ import { useState } from "react";
 
 export function CreateWalletForm() {
   const router = useRouter();
-  const [chain, setChain] = useState<"ethereum" | "solana">("ethereum");
+  const [chain, setChain] = useState<"ethereum" | "solana" | "bitcoin">("ethereum");
   const [label, setLabel] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -48,12 +48,13 @@ export function CreateWalletForm() {
         <select
           value={chain}
           onChange={(e) =>
-            setChain(e.target.value as "ethereum" | "solana")
+            setChain(e.target.value as "ethereum" | "solana" | "bitcoin")
           }
           className="w-full rounded-lg border border-white/10 bg-ink-950 px-3 py-2 text-sm outline-none ring-mint-500/40 focus:ring-2"
         >
           <option value="ethereum">Ethereum (Sepolia)</option>
           <option value="solana">Solana (Devnet)</option>
+          <option value="bitcoin">Bitcoin (Testnet)</option>
         </select>
       </div>
       <div className="flex-[2] space-y-3">

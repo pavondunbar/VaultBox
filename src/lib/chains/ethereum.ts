@@ -6,6 +6,7 @@ import {
   formatUnits,
   http,
   parseEther,
+  parseGwei,
   type Address,
 } from "viem";
 import { privateKeyToAccount, generatePrivateKey } from "viem/accounts";
@@ -86,6 +87,8 @@ export async function sendEthNative(params: {
   to: string;
   /** ETH amount as decimal string, e.g. "0.01" */
   amountEth: string;
+  /** Optional gas price in Gwei for RBF */
+  gasPriceGwei?: string;
 }): Promise<string> {
   const account = accountFromPk(params.privateKeyHex);
   const walletClient = createWalletClient({
@@ -96,6 +99,7 @@ export async function sendEthNative(params: {
   const hash = await walletClient.sendTransaction({
     to: params.to as Address,
     value: parseEther(params.amountEth),
+    ...(params.gasPriceGwei ? { gasPrice: parseGwei(params.gasPriceGwei) } : {}),
   });
   return hash;
 }
@@ -108,6 +112,8 @@ export async function sendErc20(params: {
   /** Human-readable amount, e.g. "10.5" */
   amount: string;
   decimals: number;
+  /** Optional gas price in Gwei for RBF */
+  gasPriceGwei?: string;
 }): Promise<string> {
   const account = accountFromPk(params.privateKeyHex);
   const walletClient = createWalletClient({
@@ -122,6 +128,7 @@ export async function sendErc20(params: {
     abi: erc20Abi,
     functionName: "transfer",
     args: [params.to as Address, value],
+    ...(params.gasPriceGwei ? { gasPrice: parseGwei(params.gasPriceGwei) } : {}),
   });
   return hash;
 }

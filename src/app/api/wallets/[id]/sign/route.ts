@@ -4,6 +4,7 @@ import { getSessionUser } from "@/lib/auth/session";
 import { getServerEnv } from "@/lib/env";
 import { signEthMessage } from "@/lib/chains/ethereum";
 import { signSolanaMessage } from "@/lib/chains/solana";
+import { signBtcMessage } from "@/lib/chains/bitcoin";
 import { unlockWalletKey } from "@/lib/wallets/key";
 import { requireWalletAccess } from "@/lib/wallets/access";
 import { check, rateLimitResponse } from "@/lib/security/rate-limit";
@@ -60,6 +61,10 @@ export async function POST(
   try {
     if (wallet.chain === "ethereum") {
       const signedMessage = await signEthMessage(secret, parsed.data.message);
+      return NextResponse.json({ signedMessage });
+    }
+    if (wallet.chain === "bitcoin") {
+      const signedMessage = signBtcMessage(secret, parsed.data.message);
       return NextResponse.json({ signedMessage });
     }
     const signedMessage = signSolanaMessage(secret, parsed.data.message);

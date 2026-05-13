@@ -4,6 +4,7 @@ import { getSessionUser } from "@/lib/auth/session";
 import { getServerEnv } from "@/lib/env";
 import { getErc20Balance, getEthNativeBalance } from "@/lib/chains/ethereum";
 import { getSolNativeBalance, getSplBalance } from "@/lib/chains/solana";
+import { getBtcBalance } from "@/lib/chains/bitcoin";
 import { requireWalletAccess } from "@/lib/wallets/access";
 
 const idSchema = z.string().uuid();
@@ -57,6 +58,17 @@ export async function GET(
         symbol: "ETH",
         balance: b.formatted,
         wei: b.wei.toString(),
+      });
+    }
+
+    if (wallet.chain === "bitcoin") {
+      const b = await getBtcBalance(env.BTC_API_URL, wallet.address);
+      return NextResponse.json({
+        chain: "bitcoin",
+        asset: "native",
+        symbol: "BTC",
+        balance: b.formatted,
+        satoshis: b.satoshis,
       });
     }
 

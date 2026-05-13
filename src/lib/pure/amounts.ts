@@ -1,6 +1,24 @@
 const SOL_DECIMALS = 9;
 const LAMPORTS_DIVISOR = 10n ** BigInt(SOL_DECIMALS);
 
+const BTC_DECIMALS = 8;
+const SATOSHIS_DIVISOR = 10n ** BigInt(BTC_DECIMALS);
+
+/**
+ * Format a satoshi count (integer) as a human-readable BTC string.
+ */
+export function formatSatoshis(satoshis: number): string {
+  if (!Number.isInteger(satoshis) || satoshis < 0) {
+    throw new Error("satoshis must be a non-negative integer");
+  }
+  const big = BigInt(satoshis);
+  const whole = big / SATOSHIS_DIVISOR;
+  const frac = big % SATOSHIS_DIVISOR;
+  if (frac === 0n) return whole.toString();
+  const fracStr = frac.toString().padStart(BTC_DECIMALS, "0").replace(/0+$/, "");
+  return `${whole}.${fracStr}`;
+}
+
 /**
  * Format a lamport count (integer) as a human-readable SOL string.
  * Uses BigInt arithmetic to avoid floating-point precision loss.

@@ -6,12 +6,13 @@ import { getServerEnv } from "@/lib/env";
 import { encryptSecret } from "@/lib/crypto/vault";
 import { createEthereumWallet } from "@/lib/chains/ethereum";
 import { createSolanaWallet } from "@/lib/chains/solana";
+import { createBitcoinWallet } from "@/lib/chains/bitcoin";
 import { db } from "@/lib/db";
 import { users, wallets, walletShares } from "@/lib/db/schema";
 import { check, rateLimitResponse } from "@/lib/security/rate-limit";
 
 const createSchema = z.object({
-  chain: z.enum(["ethereum", "solana"]),
+  chain: z.enum(["ethereum", "solana", "bitcoin"]),
   label: z.string().max(64).optional(),
 });
 
@@ -104,10 +105,14 @@ export async function POST(request: Request) {
     const w = createEthereumWallet();
     address = w.address;
     secretToStore = w.privateKey;
-  } else {
+  } else if (chain === "solana") {
     const w = createSolanaWallet();
     address = w.address;
     secretToStore = w.secretBs58;
+  } else {
+    const w = createBitcoinWallet();
+    address = w.address;
+    secretToStore = w.privateKeyWif;
   }
 
   const encryptedPrivateKey = encryptSecret(secretToStore, env.ENCRYPTION_KEY);

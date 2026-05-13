@@ -12,16 +12,17 @@ import {
   sendSolNative,
   sendSplToken,
 } from "@/lib/chains/solana";
+import { sendBtcNative } from "@/lib/chains/bitcoin";
 import { unlockWalletKey } from "@/lib/wallets/key";
 import { requireWalletAccess } from "@/lib/wallets/access";
-import { isValidEthAddress, isValidSolAddress } from "@/lib/validation/addresses";
+import { isValidEthAddress, isValidSolAddress, isValidBtcAddress } from "@/lib/validation/addresses";
 import { db } from "@/lib/db";
 import { transactions, wallets } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
 import { check, rateLimitResponse } from "@/lib/security/rate-limit";
-import { recordLedgerEntries } from "@/lib/transactions/ledger";
+import { recordLedgerEntries, createDebitCreditPair } from "@/lib/transactions/ledger";
 import { acquireWalletLock } from "@/lib/db/wallet-lock";
-import { getWalletBalanceFromLedger } from "@/lib/transactions/ledger-balance";
+import { getOnChainBalance } from "@/lib/wallets/balance";
 import { numericGte } from "@/lib/pure/amounts";
 
 const idSchema = z.string().uuid();
@@ -31,6 +32,7 @@ const bodySchema = z.object({
   amount: z.string().regex(/^\d+(\.\d+)?$/),
   tokenAddress: z.string().optional(),
   mint: z.string().optional(),
+  gasPrice: z.string().regex(/^\d+(\.\d+)?$/).optional(),
 });
 
 export async function POST(
@@ -73,7 +75,7 @@ export async function POST(
   }
   const { wallet } = access;
 
-  const { to, amount, tokenAddress, mint } = parsed.data;
+  const { to, amount, tokenAddress, mint, gasPrice } = parsed.data;
 
   if (wallet.chain === "ethereum") {
     if (mint) {
@@ -84,6 +86,16 @@ export async function POST(
     }
     if (!isValidEthAddress(to)) {
       return NextResponse.json({ error: "Invalid Ethereum address" }, { status: 400 });
+    }
+  } else if (wallet.chain === "bitcoin") {
+    if (mint || tokenAddress) {
+      return NextResponse.json(
+        { error: "Bitcoin does not support tokens" },
+        { status: 400 },
+      );
+    }
+    if (!isValidBtcAddress(to)) {
+      return NextResponse.json({ error: "Invalid Bitcoin address" }, { status: 400 });
     }
   } else {
     if (tokenAddress) {
@@ -104,10 +116,12 @@ export async function POST(
     const result = await db.transaction(async (tx) => {
       await acquireWalletLock(tx, wallet.id);
 
-      const balance = await getWalletBalanceFromLedger(
-        wallet.id,
+      const balance = await getOnChainBalance(
+        wallet.chain,
+        wallet.address,
+        env.ETH_RPC_URL,
+        env.SOL_RPC_URL,
         tokenAddress ?? mint ?? null,
-        tx,
       );
       if (!numericGte(balance, amount)) {
         return { error: "Insufficient funds", status: 400 as const };
@@ -130,6 +144,7 @@ export async function POST(
             to,
             amount,
             decimals,
+            gasPriceGwei: gasPrice,
           });
           tokenAddrOut = tokenAddress;
           tokenSymbol = "ERC20";
@@ -139,8 +154,16 @@ export async function POST(
             privateKeyHex: secret,
             to,
             amountEth: amount,
+            gasPriceGwei: gasPrice,
           });
         }
+      } else if (wallet.chain === "bitcoin") {
+        txHash = await sendBtcNative({
+          apiUrl: env.BTC_API_URL,
+          privateKeyWif: secret,
+          to,
+          amountBtc: amount,
+        });
       } else if (mint) {
         const decimals = await fetchSplDecimals(env.SOL_RPC_URL, mint);
         txHash = await sendSplToken({
@@ -171,6 +194,7 @@ export async function POST(
         fromAddress: wallet.address,
         direction: "outgoing",
         amount,
+        status: "pending",
         tokenSymbol,
         tokenAddress: tokenAddrOut,
       });
@@ -181,46 +205,21 @@ export async function POST(
         .where(eq(wallets.address, to))
         .limit(1);
 
-      if (recipientWallet.length > 0) {
-        await recordLedgerEntries(
-          [
-            {
-              txHash,
-              walletId: wallet.id,
-              chain: wallet.chain,
-              entryType: "debit",
-              amount,
-              tokenSymbol,
-              tokenAddress: tokenAddrOut,
-            },
-            {
-              txHash,
-              walletId: recipientWallet[0].id,
-              chain: wallet.chain,
-              entryType: "credit",
-              amount,
-              tokenSymbol,
-              tokenAddress: tokenAddrOut,
-            },
-          ],
-          tx,
-        );
-      } else {
-        await recordLedgerEntries(
-          [
-            {
-              txHash,
-              walletId: wallet.id,
-              chain: wallet.chain,
-              entryType: "debit",
-              amount,
-              tokenSymbol,
-              tokenAddress: tokenAddrOut,
-            },
-          ],
-          tx,
-        );
-      }
+      const creditWalletId =
+        recipientWallet.length > 0 ? recipientWallet[0].id : wallet.id;
+
+      await recordLedgerEntries(
+        createDebitCreditPair({
+          txHash,
+          fromWalletId: wallet.id,
+          toWalletId: creditWalletId,
+          chain: wallet.chain,
+          amount,
+          tokenSymbol,
+          tokenAddress: tokenAddrOut,
+        }),
+        tx,
+      );
 
       return { transactionHash: txHash };
     });

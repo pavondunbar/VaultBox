@@ -19,11 +19,22 @@ type BalanceNativeSol = {
   lamports: number;
 };
 
-type BalanceResp = BalanceNativeEth | BalanceNativeSol | Record<string, unknown>;
+type BalanceNativeBtc = {
+  chain: "bitcoin";
+  asset: "native";
+  symbol: string;
+  balance: string;
+  satoshis: number;
+};
+
+type BalanceResp = BalanceNativeEth | BalanceNativeSol | BalanceNativeBtc | Record<string, unknown>;
 
 function explorerUrl(chain: string, txHash: string): string {
   if (chain === "ethereum") {
     return `https://sepolia.etherscan.io/tx/${txHash}`;
+  }
+  if (chain === "bitcoin") {
+    return `https://mempool.space/testnet/tx/${txHash}`;
   }
   return `https://explorer.solana.com/tx/${txHash}?cluster=devnet`;
 }
@@ -34,7 +45,7 @@ export function WalletDetail({
   role = "owner",
 }: {
   walletId: string;
-  chain: "ethereum" | "solana";
+  chain: "ethereum" | "solana" | "bitcoin";
   role?: "owner" | "editor" | "viewer";
 }) {
   const canWrite = role !== "viewer";
@@ -75,6 +86,8 @@ export function WalletDetail({
 
   useEffect(() => {
     void loadBalance();
+    const id = setInterval(() => void loadBalance(), 15_000);
+    return () => clearInterval(id);
   }, [loadBalance]);
 
   const [signMsg, setSignMsg] = useState("Hello from VenCura");
@@ -107,6 +120,7 @@ export function WalletDetail({
   const [sendTo, setSendTo] = useState("");
   const [sendAmt, setSendAmt] = useState("");
   const [sendToken, setSendToken] = useState("");
+  const [sendGasPrice, setSendGasPrice] = useState("");
   const [sendErr, setSendErr] = useState<string | null>(null);
   const [sendHash, setSendHash] = useState<string | null>(null);
   const [sendLoading, setSendLoading] = useState(false);
@@ -123,6 +137,9 @@ export function WalletDetail({
       if (chain === "ethereum" && sendToken.trim()) {
         body.tokenAddress = sendToken.trim();
       }
+      if (chain === "ethereum" && sendGasPrice.trim()) {
+        body.gasPrice = sendGasPrice.trim();
+      }
       if (chain === "solana" && sendToken.trim()) {
         body.mint = sendToken.trim();
       }
@@ -134,7 +151,7 @@ export function WalletDetail({
       });
       const data = await res.json();
       if (!res.ok) {
-        setSendErr(data.error ?? "Send failed");
+        setSendErr(typeof data.error === "string" ? data.error : "Invalid amount or address");
         return;
       }
       setSendHash(data.transactionHash as string);
@@ -188,7 +205,7 @@ export function WalletDetail({
       });
       const data = await res.json();
       if (!res.ok) {
-        setXferErr(data.error ?? "Transfer failed");
+        setXferErr(typeof data.error === "string" ? data.error : "Transfer failed");
         return;
       }
       setXferHash(data.transactionHash as string);
@@ -209,6 +226,7 @@ export function WalletDetail({
       direction: string;
       chain: string;
       amount: string;
+      status: string;
       tokenSymbol: string | null;
       tokenAddress: string | null;
       createdAt: string;
@@ -227,19 +245,59 @@ export function WalletDetail({
 
   useEffect(() => {
     void loadTx();
+    const id = setInterval(() => void loadTx(), 15_000);
+    return () => clearInterval(id);
   }, [loadTx]);
 
   const tokenLabel =
     chain === "ethereum"
       ? "ERC-20 contract (optional)"
-      : "SPL mint address (optional)";
+      : chain === "solana"
+        ? "SPL mint address (optional)"
+        : "";
+
+  const [rbfTarget, setRbfTarget] = useState<string | null>(null);
+  const [rbfMaxFee, setRbfMaxFee] = useState("");
+  const [rbfPriorityFee, setRbfPriorityFee] = useState("");
+  const [rbfErr, setRbfErr] = useState<string | null>(null);
+  const [rbfHash, setRbfHash] = useState<string | null>(null);
+  const [rbfLoading, setRbfLoading] = useState(false);
+
+  async function speedUp() {
+    if (!rbfTarget) return;
+    setRbfErr(null);
+    setRbfHash(null);
+    setRbfLoading(true);
+    try {
+      const res = await fetch(`/api/wallets/${walletId}/rbf`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          originalTxHash: rbfTarget,
+          maxFeePerGas: rbfMaxFee.trim(),
+          maxPriorityFeePerGas: rbfPriorityFee.trim(),
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setRbfErr(data.error ?? "RBF failed");
+        return;
+      }
+      setRbfHash(data.replacementTxHash as string);
+      setRbfTarget(null);
+      void loadTx();
+    } finally {
+      setRbfLoading(false);
+    }
+  }
 
   return (
     <div className="grid gap-8 lg:grid-cols-2">
       <section className="rounded-xl border border-white/10 bg-ink-900/50 p-6">
         <h2 className="text-lg font-medium text-white">Balance</h2>
         <p className="mt-1 text-xs text-slate-500">
-          Leave token empty for native {chain === "ethereum" ? "ETH" : "SOL"}.
+          Leave token empty for native {chain === "ethereum" ? "ETH" : chain === "bitcoin" ? "BTC" : "SOL"}.
         </p>
         <div className="mt-4 flex flex-col gap-2 sm:flex-row">
           <input
@@ -274,6 +332,9 @@ export function WalletDetail({
                 {chain === "solana" &&
                   balance.asset === "native" &&
                   `Lamports: ${(balance as BalanceNativeSol).lamports}`}
+                {chain === "bitcoin" &&
+                  balance.asset === "native" &&
+                  `Satoshis: ${(balance as BalanceNativeBtc).satoshis}`}
                 {balance.asset === "token" && "decimals" in balance && (
                   <>Decimals: {String((balance as { decimals: number }).decimals)}</>
                 )}
@@ -328,13 +389,24 @@ export function WalletDetail({
             onChange={(e) => setSendAmt(e.target.value)}
             className="w-full rounded-lg border border-white/10 bg-ink-950 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-mint-500/40"
           />
-          <input
-            type="text"
-            placeholder={tokenLabel}
-            value={sendToken}
-            onChange={(e) => setSendToken(e.target.value)}
-            className="w-full rounded-lg border border-white/10 bg-ink-950 px-3 py-2 font-mono text-xs outline-none focus:ring-2 focus:ring-mint-500/40"
-          />
+          {chain !== "bitcoin" && (
+            <input
+              type="text"
+              placeholder={tokenLabel}
+              value={sendToken}
+              onChange={(e) => setSendToken(e.target.value)}
+              className="w-full rounded-lg border border-white/10 bg-ink-950 px-3 py-2 font-mono text-xs outline-none focus:ring-2 focus:ring-mint-500/40"
+            />
+          )}
+          {chain === "ethereum" && (
+            <input
+              type="text"
+              placeholder="Gas price in Gwei (optional — sets initial gas)"
+              value={sendGasPrice}
+              onChange={(e) => setSendGasPrice(e.target.value)}
+              className="w-full rounded-lg border border-white/10 bg-ink-950 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-mint-500/40"
+            />
+          )}
           <button
             type="button"
             disabled={sendLoading}
@@ -383,13 +455,15 @@ export function WalletDetail({
             onChange={(e) => setXferAmt(e.target.value)}
             className="w-full rounded-lg border border-white/10 bg-ink-950 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-mint-500/40"
           />
-          <input
-            type="text"
-            placeholder={tokenLabel}
-            value={xferToken}
-            onChange={(e) => setXferToken(e.target.value)}
-            className="w-full rounded-lg border border-white/10 bg-ink-950 px-3 py-2 font-mono text-xs outline-none focus:ring-2 focus:ring-mint-500/40"
-          />
+          {chain !== "bitcoin" && (
+            <input
+              type="text"
+              placeholder={tokenLabel}
+              value={xferToken}
+              onChange={(e) => setXferToken(e.target.value)}
+              className="w-full rounded-lg border border-white/10 bg-ink-950 px-3 py-2 font-mono text-xs outline-none focus:ring-2 focus:ring-mint-500/40"
+            />
+          )}
           <button
             type="button"
             disabled={xferLoading || !xferTo}
@@ -422,13 +496,14 @@ export function WalletDetail({
                 <th className="pb-2 pr-4 font-medium">Kind</th>
                 <th className="pb-2 pr-4 font-medium">To/From</th>
                 <th className="pb-2 pr-4 font-medium">Amount</th>
+                <th className="pb-2 pr-4 font-medium">Status</th>
                 <th className="pb-2 font-medium">Tx</th>
               </tr>
             </thead>
             <tbody>
               {txRows.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="py-6 text-slate-500">
+                  <td colSpan={6} className="py-6 text-slate-500">
                     No transactions yet.
                   </td>
                 </tr>
@@ -453,6 +528,24 @@ export function WalletDetail({
                         : t.toAddress}
                     </td>
                     <td className="py-2 pr-4">{t.amount}</td>
+                    <td className="py-2 pr-4">
+                      <span className={
+                        t.status === "confirmed" ? "text-green-400" :
+                        t.status === "failed" ? "text-red-400" :
+                        "text-yellow-400"
+                      }>
+                        {t.status ?? "confirmed"}
+                      </span>
+                      {canWrite && chain === "ethereum" && t.status === "pending" && t.direction === "outgoing" && (
+                        <button
+                          type="button"
+                          onClick={() => { setRbfTarget(t.txHash); setRbfErr(null); setRbfHash(null); }}
+                          className="ml-2 text-xs text-amber-400 hover:text-amber-300 underline"
+                        >
+                          Speed Up
+                        </button>
+                      )}
+                    </td>
                     <td className="py-2 font-mono text-xs">
                       <a
                         href={explorerUrl(t.chain, t.txHash)}
@@ -469,6 +562,48 @@ export function WalletDetail({
             </tbody>
           </table>
         </div>
+
+        {rbfTarget && (
+          <div className="mt-4 rounded-lg border border-amber-500/30 bg-amber-950/20 p-4 space-y-3">
+            <h3 className="text-sm font-medium text-amber-400">Speed Up Transaction (RBF)</h3>
+            <p className="text-xs text-slate-400">
+              Replace pending tx <span className="font-mono">{rbfTarget.slice(0, 20)}…</span> with higher gas fees (in wei).
+            </p>
+            <input
+              type="text"
+              placeholder="Max fee per gas (wei) — e.g. 30000000000 for 30 Gwei"
+              value={rbfMaxFee}
+              onChange={(e) => setRbfMaxFee(e.target.value)}
+              className="w-full rounded-lg border border-white/10 bg-ink-950 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-amber-500/40"
+            />
+            <input
+              type="text"
+              placeholder="Max priority fee per gas (wei) — e.g. 2000000000 for 2 Gwei"
+              value={rbfPriorityFee}
+              onChange={(e) => setRbfPriorityFee(e.target.value)}
+              className="w-full rounded-lg border border-white/10 bg-ink-950 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-amber-500/40"
+            />
+            <div className="flex gap-2">
+              <button
+                type="button"
+                disabled={rbfLoading || !rbfMaxFee.trim() || !rbfPriorityFee.trim()}
+                onClick={() => void speedUp()}
+                className="rounded-lg bg-amber-600 px-4 py-2 text-sm font-medium text-ink-950 hover:bg-amber-500 disabled:opacity-50"
+              >
+                {rbfLoading ? "Replacing…" : "Replace Transaction"}
+              </button>
+              <button
+                type="button"
+                onClick={() => setRbfTarget(null)}
+                className="rounded-lg border border-white/15 px-4 py-2 text-xs text-slate-300 hover:bg-white/5"
+              >
+                Cancel
+              </button>
+            </div>
+            {rbfErr && <p className="text-sm text-red-400">{rbfErr}</p>}
+            {rbfHash && <p className="font-mono text-xs text-mint-400 break-all">Replacement tx: {rbfHash}</p>}
+          </div>
+        )}
       </section>
 
       {role === "owner" && <ShareManagement walletId={walletId} />}

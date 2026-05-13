@@ -12,6 +12,7 @@ import {
   sendSolNative,
   sendSplToken,
 } from "@/lib/chains/solana";
+import { sendBtcNative } from "@/lib/chains/bitcoin";
 import { unlockWalletKey } from "@/lib/wallets/key";
 import { requireWalletAccess } from "@/lib/wallets/access";
 import { db } from "@/lib/db";
@@ -19,7 +20,7 @@ import { transactions } from "@/lib/db/schema";
 import { check, rateLimitResponse } from "@/lib/security/rate-limit";
 import { recordLedgerEntries, createDebitCreditPair } from "@/lib/transactions/ledger";
 import { acquireWalletLocks } from "@/lib/db/wallet-lock";
-import { getWalletBalanceFromLedger } from "@/lib/transactions/ledger-balance";
+import { getOnChainBalance } from "@/lib/wallets/balance";
 import { numericGte } from "@/lib/pure/amounts";
 
 const idSchema = z.string().uuid();
@@ -108,10 +109,12 @@ export async function POST(
     const result = await db.transaction(async (tx) => {
       await acquireWalletLocks(tx, [fromWallet.id, destWallet.id]);
 
-      const balance = await getWalletBalanceFromLedger(
-        fromWallet.id,
+      const balance = await getOnChainBalance(
+        fromWallet.chain,
+        fromWallet.address,
+        env.ETH_RPC_URL,
+        env.SOL_RPC_URL,
         tokenAddress ?? mint ?? null,
-        tx,
       );
       if (!numericGte(balance, amount)) {
         return { error: "Insufficient funds", status: 400 as const };
@@ -151,6 +154,19 @@ export async function POST(
             amountEth: amount,
           });
         }
+      } else if (fromWallet.chain === "bitcoin") {
+        if (mint || tokenAddress) {
+          return {
+            error: "Bitcoin does not support tokens",
+            status: 400 as const,
+          };
+        }
+        txHash = await sendBtcNative({
+          apiUrl: env.BTC_API_URL,
+          privateKeyWif: secret,
+          to,
+          amountBtc: amount,
+        });
       } else if (mint) {
         const decimals = await fetchSplDecimals(env.SOL_RPC_URL, mint);
         txHash = await sendSplToken({
@@ -182,6 +198,7 @@ export async function POST(
           fromAddress: fromWallet.address,
           direction: "outgoing",
           amount,
+          status: "pending",
           tokenSymbol,
           tokenAddress: tokenAddrOut,
         },
@@ -194,6 +211,7 @@ export async function POST(
           fromAddress: fromWallet.address,
           direction: "incoming",
           amount,
+          status: "pending",
           tokenSymbol,
           tokenAddress: tokenAddrOut,
         },

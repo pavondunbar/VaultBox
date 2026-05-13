@@ -1,4 +1,4 @@
-export type ChainId = "ethereum" | "solana";
+export type ChainId = "ethereum" | "solana" | "bitcoin";
 
 export type NormalizedTx = {
   txHash: string;
