@@ -15,7 +15,7 @@ import {
 } from "@solana/spl-token";
 import bs58 from "bs58";
 import nacl from "tweetnacl";
-import { formatLamports, parseHumanAmountToBigInt } from "@/lib/pure/amounts";
+import { formatLamportsBigInt, parseHumanAmountToBigInt } from "@/lib/pure/amounts";
 
 export function createSolanaWallet(): {
   address: string;
@@ -37,13 +37,14 @@ export function keypairFromSecret(secretBs58: string): Keypair {
 export async function getSolNativeBalance(
   rpcUrl: string,
   address: string,
-): Promise<{ lamports: number; formatted: string }> {
+): Promise<{ lamports: bigint; formatted: string }> {
   const conn = new Connection(rpcUrl, "confirmed");
   const pk = new PublicKey(address);
-  const lamports = await conn.getBalance(pk);
+  const lamportsNum = await conn.getBalance(pk);
+  const lamports = BigInt(lamportsNum);
   return {
     lamports,
-    formatted: formatLamports(lamports),
+    formatted: formatLamportsBigInt(lamports),
   };
 }
 

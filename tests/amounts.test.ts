@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatLamports, parseHumanAmountToBigInt } from "@/lib/pure/amounts";
+import { formatLamports, formatLamportsBigInt, parseHumanAmountToBigInt } from "@/lib/pure/amounts";
 
 describe("parseHumanAmountToBigInt", () => {
   it("parses a whole number", () => {
@@ -89,5 +89,33 @@ describe("formatLamports", () => {
 
   it("throws on non-integer input", () => {
     expect(() => formatLamports(1.5)).toThrow("non-negative integer");
+  });
+});
+
+describe("formatLamportsBigInt", () => {
+  it("formats zero", () => {
+    expect(formatLamportsBigInt(0n)).toBe("0");
+  });
+
+  it("formats an exact SOL amount", () => {
+    expect(formatLamportsBigInt(1_000_000_000n)).toBe("1");
+  });
+
+  it("formats a fractional amount", () => {
+    expect(formatLamportsBigInt(1_500_000_000n)).toBe("1.5");
+  });
+
+  it("formats 1 lamport", () => {
+    expect(formatLamportsBigInt(1n)).toBe("0.000000001");
+  });
+
+  it("handles very large values without precision loss", () => {
+    // 999,999,999.999999999 SOL
+    const lamports = 999_999_999_999_999_999n;
+    expect(formatLamportsBigInt(lamports)).toBe("999999999.999999999");
+  });
+
+  it("throws on negative input", () => {
+    expect(() => formatLamportsBigInt(-1n)).toThrow("non-negative");
   });
 });

@@ -1,6 +1,7 @@
 import {
   boolean,
   index,
+  integer,
   pgTable,
   text,
   timestamp,
@@ -181,3 +182,85 @@ export type RbfTransactionRow = typeof rbfTransactions.$inferSelect;
 export type AuditLogRow = typeof auditLogs.$inferSelect;
 export type IdempotencyKeyRow = typeof idempotencyKeys.$inferSelect;
 export type WalletBalanceRow = typeof walletBalances.$inferSelect;
+
+// --- Hot/Cold Wallet Temperature ---
+
+export const walletTemperature = pgTable(
+  "wallet_temperature",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    walletId: uuid("wallet_id")
+      .references(() => wallets.id, { onDelete: "cascade" })
+      .notNull(),
+    temperature: text("temperature").notNull().default("hot"), // 'hot' or 'cold'
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  },
+  (table) => [
+    uniqueIndex("wallet_temperature_wallet_idx").on(table.walletId),
+  ],
+);
+
+// --- Withdrawal Approvals ---
+
+export const withdrawalApprovals = pgTable(
+  "withdrawal_approvals",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    walletId: uuid("wallet_id")
+      .references(() => wallets.id, { onDelete: "cascade" })
+      .notNull(),
+    requesterId: uuid("requester_id")
+      .references(() => users.id, { onDelete: "cascade" })
+      .notNull(),
+    chain: text("chain").notNull(),
+    toAddress: text("to_address").notNull(),
+    amount: text("amount").notNull(),
+    tokenAddress: text("token_address"),
+    status: text("status").notNull().default("pending"), // pending, approved, rejected, expired
+    requiredApprovals: integer("required_approvals").notNull().default(2),
+    currentApprovals: integer("current_approvals").notNull().default(0),
+    expiresAt: timestamp("expires_at").notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => [
+    index("withdrawal_approvals_wallet_status_idx").on(table.walletId, table.status),
+  ],
+);
+
+export const withdrawalVotes = pgTable(
+  "withdrawal_votes",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    approvalId: uuid("approval_id")
+      .references(() => withdrawalApprovals.id, { onDelete: "cascade" })
+      .notNull(),
+    voterId: uuid("voter_id")
+      .references(() => users.id, { onDelete: "cascade" })
+      .notNull(),
+    vote: text("vote").notNull(), // 'approve' or 'reject'
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => [
+    uniqueIndex("withdrawal_votes_approval_voter_idx").on(table.approvalId, table.voterId),
+  ],
+);
+
+// --- Indexer Cursors ---
+
+export const indexerCursors = pgTable(
+  "indexer_cursors",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    chain: text("chain").notNull(),
+    cursor: text("cursor").notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  },
+  (table) => [
+    uniqueIndex("indexer_cursors_chain_idx").on(table.chain),
+  ],
+);
+
+export type WalletTemperatureRow = typeof walletTemperature.$inferSelect;
+export type WithdrawalApprovalRow = typeof withdrawalApprovals.$inferSelect;
+export type WithdrawalVoteRow = typeof withdrawalVotes.$inferSelect;
+export type IndexerCursorRow = typeof indexerCursors.$inferSelect;

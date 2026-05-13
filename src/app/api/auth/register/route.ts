@@ -17,7 +17,7 @@ const bodySchema = z.object({
 
 export async function POST(request: Request) {
   const ip = getClientIp(request);
-  const rateResult = check("register", ip);
+  const rateResult = await check("register", ip);
   if (!rateResult.allowed) {
     return rateLimitResponse(rateResult);
   }

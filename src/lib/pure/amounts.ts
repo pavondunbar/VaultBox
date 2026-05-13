@@ -20,6 +20,21 @@ export function formatSatoshis(satoshis: number): string {
 }
 
 /**
+ * Format a lamport count (bigint) as a human-readable SOL string.
+ * Fully integer arithmetic — no floating-point at any stage.
+ */
+export function formatLamportsBigInt(lamports: bigint): string {
+  if (lamports < 0n) {
+    throw new Error("lamports must be non-negative");
+  }
+  const whole = lamports / LAMPORTS_DIVISOR;
+  const frac = lamports % LAMPORTS_DIVISOR;
+  if (frac === 0n) return whole.toString();
+  const fracStr = frac.toString().padStart(SOL_DECIMALS, "0").replace(/0+$/, "");
+  return `${whole}.${fracStr}`;
+}
+
+/**
  * Format a lamport count (integer) as a human-readable SOL string.
  * Uses BigInt arithmetic to avoid floating-point precision loss.
  */

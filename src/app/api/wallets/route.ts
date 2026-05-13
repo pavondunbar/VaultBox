@@ -8,7 +8,7 @@ import { createEthereumWallet } from "@/lib/chains/ethereum";
 import { createSolanaWallet } from "@/lib/chains/solana";
 import { createBitcoinWallet } from "@/lib/chains/bitcoin";
 import { db } from "@/lib/db";
-import { users, wallets, walletShares } from "@/lib/db/schema";
+import { users, wallets, walletShares, walletTemperature } from "@/lib/db/schema";
 import { check, rateLimitResponse } from "@/lib/security/rate-limit";
 
 const createSchema = z.object({
@@ -33,8 +33,10 @@ export async function GET(request: Request) {
       address: wallets.address,
       label: wallets.label,
       createdAt: wallets.createdAt,
+      temperature: walletTemperature.temperature,
     })
     .from(wallets)
+    .leftJoin(walletTemperature, eq(walletTemperature.walletId, wallets.id))
     .where(eq(wallets.userId, session.id))
     .orderBy(desc(wallets.createdAt));
 
@@ -46,15 +48,17 @@ export async function GET(request: Request) {
       label: wallets.label,
       createdAt: wallets.createdAt,
       role: walletShares.role,
+      temperature: walletTemperature.temperature,
     })
     .from(walletShares)
     .innerJoin(wallets, eq(wallets.id, walletShares.walletId))
+    .leftJoin(walletTemperature, eq(walletTemperature.walletId, wallets.id))
     .where(eq(walletShares.userId, session.id))
     .orderBy(desc(wallets.createdAt));
 
   const all = [
-    ...owned.map((w) => ({ ...w, role: "owner" as const })),
-    ...shared.map((w) => ({ ...w, role: w.role as "editor" | "viewer" })),
+    ...owned.map((w) => ({ ...w, temperature: w.temperature ?? "hot", role: "owner" as const })),
+    ...shared.map((w) => ({ ...w, temperature: w.temperature ?? "hot", role: w.role as "editor" | "viewer" })),
   ];
 
   const total = all.length;
@@ -82,7 +86,7 @@ export async function POST(request: Request) {
     );
   }
 
-  const rateResult = check("createWallet", session.id);
+  const rateResult = await check("createWallet", session.id);
   if (!rateResult.allowed) {
     return rateLimitResponse(rateResult);
   }

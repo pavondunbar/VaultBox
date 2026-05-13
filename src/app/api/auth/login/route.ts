@@ -24,7 +24,7 @@ const bodySchema = z.object({
 
 export async function POST(request: Request) {
   const ip = getClientIp(request);
-  const rateResult = check("login", ip);
+  const rateResult = await check("login", ip);
   if (!rateResult.allowed) {
     logSecurityEvent({
       timestamp: new Date().toISOString(),

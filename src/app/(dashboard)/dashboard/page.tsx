@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { desc, eq } from "drizzle-orm";
 import { getSessionUser } from "@/lib/auth/session";
 import { db } from "@/lib/db";
-import { wallets, walletShares } from "@/lib/db/schema";
+import { wallets, walletShares, walletTemperature } from "@/lib/db/schema";
 import { CreateWalletForm } from "@/components/CreateWalletForm";
 
 export default async function DashboardPage() {
@@ -19,8 +19,10 @@ export default async function DashboardPage() {
       address: wallets.address,
       label: wallets.label,
       createdAt: wallets.createdAt,
+      temperature: walletTemperature.temperature,
     })
     .from(wallets)
+    .leftJoin(walletTemperature, eq(walletTemperature.walletId, wallets.id))
     .where(eq(wallets.userId, user.id))
     .orderBy(desc(wallets.createdAt));
 
@@ -32,15 +34,17 @@ export default async function DashboardPage() {
       label: wallets.label,
       createdAt: wallets.createdAt,
       role: walletShares.role,
+      temperature: walletTemperature.temperature,
     })
     .from(walletShares)
     .innerJoin(wallets, eq(wallets.id, walletShares.walletId))
+    .leftJoin(walletTemperature, eq(walletTemperature.walletId, wallets.id))
     .where(eq(walletShares.userId, user.id))
     .orderBy(desc(wallets.createdAt));
 
   const list = [
-    ...owned.map((w) => ({ ...w, role: "owner" as const })),
-    ...shared.map((w) => ({ ...w, role: w.role as "editor" | "viewer" })),
+    ...owned.map((w) => ({ ...w, temperature: (w.temperature ?? "hot") as "hot" | "cold", role: "owner" as const })),
+    ...shared.map((w) => ({ ...w, temperature: (w.temperature ?? "hot") as "hot" | "cold", role: w.role as "editor" | "viewer" })),
   ];
 
   return (
@@ -71,6 +75,13 @@ export default async function DashboardPage() {
                 <div className="flex items-center gap-2">
                   <span className="rounded-full bg-white/5 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider text-mint-400">
                     {w.chain}
+                  </span>
+                  <span className={`rounded-full px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider ${
+                    w.temperature === "cold"
+                      ? "bg-blue-500/20 text-blue-400"
+                      : "bg-orange-500/20 text-orange-400"
+                  }`}>
+                    {w.temperature === "cold" ? "🧊 Cold" : "🔥 Hot"}
                   </span>
                   {w.role !== "owner" && (
                     <span className="rounded-full bg-amber-500/20 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider text-amber-400">

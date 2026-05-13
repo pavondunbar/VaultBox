@@ -44,7 +44,7 @@ export async function POST(
     );
   }
 
-  const rateResult = check("sign", session.id);
+  const rateResult = await check("sign", session.id);
   if (!rateResult.allowed) {
     return rateLimitResponse(rateResult);
   }

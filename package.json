@@ -29,6 +29,7 @@
     "qrcode": "^1.5.4",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
+    "redis": "4.7.0",
     "tiny-secp256k1": "2.2.3",
     "tweetnacl": "^1.0.3",
     "viem": "^2.28.0",

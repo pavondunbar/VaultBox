@@ -30,7 +30,7 @@ export async function GET(
   }
   const { wallet } = access;
 
-  const rl = check("sync", session.id);
+  const rl = await check("sync", session.id);
   if (!rl.allowed) {
     return rateLimitResponse(rl);
   }

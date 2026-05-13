@@ -2,7 +2,8 @@
        test test-unit test-integration lint typecheck integrity \
        db-create db-push db-generate db-studio shell-pg \
        db-users db-wallets db-transactions db-shares db-ledger db-ledger-balance db-wallet-balances db-wallet-balances-fast db-audit \
-       health health-api clean nuke logs demo open-docs \
+       db-approvals db-temperature db-indexer-cursors \
+       health health-api metrics clean nuke logs demo open-docs \
        rbf-help rbf-replace rbf-pending \
        btc-help btc-balance
 
@@ -186,6 +187,33 @@ db-wallet-balances-fast: ## Show wallet balances from materialized table (O(1) l
 		JOIN wallets w ON wb.wallet_id = w.id \
 		JOIN users u ON w.user_id = u.id \
 		ORDER BY u.email, wb.chain;"
+
+db-approvals: ## List pending withdrawal approvals
+	@. ./.env 2>/dev/null; psql "$$DATABASE_URL" -c \
+		"SELECT wa.id, u.email AS requester, wa.chain, wa.amount, wa.to_address, \
+		wa.status, wa.current_approvals || '/' || wa.required_approvals AS approvals, \
+		wa.expires_at, wa.created_at \
+		FROM withdrawal_approvals wa \
+		JOIN users u ON wa.requester_id = u.id \
+		ORDER BY wa.created_at DESC LIMIT 20;"
+
+db-temperature: ## Show wallet temperature classifications
+	@. ./.env 2>/dev/null; psql "$$DATABASE_URL" -c \
+		"SELECT u.email, w.chain, LEFT(w.address, 12) || '...' AS wallet, \
+		w.label, wt.temperature, wt.updated_at \
+		FROM wallet_temperature wt \
+		JOIN wallets w ON wt.wallet_id = w.id \
+		JOIN users u ON w.user_id = u.id \
+		ORDER BY wt.temperature, u.email;"
+
+db-indexer-cursors: ## Show indexer cursor positions
+	@. ./.env 2>/dev/null; psql "$$DATABASE_URL" -c \
+		"SELECT chain, cursor, updated_at FROM indexer_cursors ORDER BY chain;"
+
+# ── Monitoring ───────────────────────────────
+
+metrics: ## Fetch Prometheus metrics from the running app
+	@curl -sf $(APP_URL)/api/metrics || echo "\033[31mFailed\033[0m — is the app running?"
 
 # ── RBF (Replace-By-Fee) ─────────────────────
 

@@ -90,7 +90,7 @@ export async function GET(
       asset: "native",
       symbol: "SOL",
       balance: b.formatted,
-      lamports: b.lamports,
+      lamports: b.lamports.toString(),
     });
   } catch (e) {
     const message = e instanceof Error ? e.message : "Failed to load balance";

@@ -2,7 +2,7 @@ import {
   Connection,
   PublicKey,
 } from "@solana/web3.js";
-import { formatLamports } from "@/lib/pure/amounts";
+import { formatLamportsBigInt } from "@/lib/pure/amounts";
 import type { NormalizedTx } from "@/lib/chains/types";
 
 const MAX_SIGNATURES = 20;
@@ -32,14 +32,14 @@ function parseSystemTransfer(
 
   const source = info.source as string;
   const destination = info.destination as string;
-  const lamports = info.lamports as number;
+  const lamports = BigInt(info.lamports as number | string);
 
   if (!source || !destination || !lamports) {
     return null;
   }
 
   const isIncoming = destination === walletAddress;
-  const amount = formatLamports(lamports);
+  const amount = formatLamportsBigInt(lamports);
 
   return {
     txHash: "",

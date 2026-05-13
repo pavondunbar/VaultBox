@@ -98,7 +98,7 @@ export async function POST(
     );
   }
 
-  const rateResult = check("share", session.id);
+  const rateResult = await check("share", session.id);
   if (!rateResult.allowed) {
     return rateLimitResponse(rateResult);
   }

@@ -38,7 +38,7 @@ Full-stack custodial wallet platform for **Ethereum Sepolia**, **Solana Devnet**
 | Authentication | Email/password + TOTP 2FA (otpauth) + email verification (nodemailer) |
 | Security | Rate limiting, CSP headers, HSTS, bcryptjs password hashing |
 | Ledger | Double-entry accounting (debits = credits) with advisory locking |
-| Tests | Vitest (17 test files — unit + integration, no DB or RPC required) |
+| Tests | Vitest (20 test files — unit + integration, no DB or RPC required) |
 | Package Manager | pnpm |
 
 VenCura implements the core backend logic of a **custodial cryptocurrency wallet platform** — the kind of infrastructure that underpins institutional digital asset custody services, fintech wallet products, and crypto-native banking platforms.
@@ -141,7 +141,19 @@ All transactions are recorded using double-entry accounting principles. Every tr
 Wallet operations (`/send` and `/transfer`) use PostgreSQL transaction-scoped advisory locks (`pg_advisory_xact_lock`) to serialize concurrent requests on the same wallet. Before broadcasting a transaction, the handler acquires a lock on the sender's wallet ID, reads the current ledger balance, and rejects the request if funds are insufficient. For transfers between two wallets, locks are acquired in lexicographic order to prevent deadlocks. Locks auto-release on transaction commit or rollback — no manual cleanup or schema migration required.
 
 ### Security Layer (`src/lib/security/`)
-Rate limiting on sensitive endpoints (login, 2FA verification, email verification) using an in-memory sliding-window counter. Request logging captures IP, method, path, duration, and user ID for every API call.
+Rate limiting on sensitive endpoints (login, 2FA verification, email verification) using a Redis-backed sliding-window algorithm. When `REDIS_URL` is configured, rate limits are distributed across all instances via Redis sorted sets. Falls back to in-memory when Redis is unavailable. Request logging captures IP, method, path, duration, and user ID for every API call.
+
+### Hot/Cold Wallet Separation (`src/lib/wallets/hot-cold.ts`)
+Classifies wallets as "hot" (online, automated signing) or "cold" (offline, manual approval required). Hot wallets have configurable balance thresholds per chain — when exceeded, the system detects that funds should be swept to cold storage. Cold wallets are blocked from automated sends and require the withdrawal approval workflow. Temperature is persisted in the `wallet_temperature` table.
+
+### Withdrawal Approval Workflow (`src/lib/transactions/approval.ts`)
+High-value withdrawals require multi-party approval before broadcast. The system checks two conditions: (1) amount exceeds the auto-approve limit for the chain, and (2) velocity — too many withdrawals in the last hour. When either triggers, a pending approval request is created. Approvers vote approve/reject; once quorum is reached, the withdrawal is released. Requests expire after 24 hours. Requesters cannot approve their own withdrawals.
+
+### Real-Time Chain Indexer (`src/lib/indexer/chain-indexer.ts`)
+Continuously monitors all three blockchains for inbound transactions to platform wallets. Ethereum: polls new blocks and scans for transfers to known addresses. Solana: polls `getSignaturesForAddress` for each wallet. Bitcoin: polls Blockstream Esplora API. Cursors (last processed block/signature/txid) are persisted in the `indexer_cursors` table. Configurable poll interval via `INDEXER_POLL_MS` (default 15 seconds). Emits events consumed by the monitoring system.
+
+### Monitoring & Alerting (`src/lib/monitoring/`)
+Prometheus-compatible metrics exposed at `GET /api/metrics` for scraping by Prometheus/Grafana. Tracks HTTP request latency, transaction broadcasts, rate limit hits, indexer performance, wallet operations, and approval queue depth. The alerting module fires severity-based alerts (info/warning/critical) to console and optional webhook (`ALERT_WEBHOOK_URL`) for integration with PagerDuty, Slack, or OpsGenie. Pre-built triggers for large withdrawals, failed transactions, cold wallet access attempts, and indexer lag.
 
 ### Middleware (`src/middleware.ts`)
 Next.js middleware that validates JWT sessions on protected routes (`/dashboard`, `/wallet`, `/api/*`), redirects unauthenticated users to `/login`, and logs request metadata.
@@ -204,7 +216,7 @@ Wallet owners can share wallets with other registered users by email. Shared acc
 The wallet share is recorded in the `wallet_shares` table with a unique constraint on `(walletId, userId)`. Shared wallets appear on the invitee's dashboard alongside their owned wallets. Only wallet owners can manage shares. The invited user must already have a registered account — the system does not send email invitations to unregistered users.
 
 ### Rate Limiting
-In-memory sliding-window rate limiter protects login, 2FA, email verification, and wallet sharing endpoints from brute-force attacks. Tracks by IP + endpoint combination. Not distributed — suitable for single-instance deployments.
+Redis-backed sliding-window rate limiter protects login, 2FA, email verification, wallet sharing, and withdrawal endpoints from brute-force attacks. When `REDIS_URL` is configured, rate limits are distributed across all application instances via Redis sorted sets. Falls back to in-memory when Redis is unavailable. Tracks by IP + endpoint combination.
 
 ### Security Headers
 Next.js configuration applies strict security headers on every response: Content-Security-Policy, X-Frame-Options (DENY), X-Content-Type-Options (nosniff), HSTS with 2-year max-age, strict Referrer-Policy, and restrictive Permissions-Policy.
@@ -357,6 +369,49 @@ Unique index on `(key, userId)` — each key is scoped to a single user.
 
 Unique index on `(walletId, tokenAddress)` — one balance row per wallet per token.
 
+### `wallet_temperature`
+| Column | Type | Description |
+|--------|------|-------------|
+| `id` | UUID PK | Record identifier |
+| `walletId` | UUID FK | Wallet (cascade delete, unique) |
+| `temperature` | VARCHAR | `hot` or `cold` (default: `hot`) |
+| `updatedAt` | TIMESTAMP | Last classification change |
+
+### `withdrawal_approvals`
+| Column | Type | Description |
+|--------|------|-------------|
+| `id` | UUID PK | Approval request identifier |
+| `walletId` | UUID FK | Source wallet (cascade delete) |
+| `requesterId` | UUID FK | User who initiated the withdrawal |
+| `chain` | VARCHAR | `ethereum`, `solana`, or `bitcoin` |
+| `toAddress` | VARCHAR | Destination address |
+| `amount` | VARCHAR | Withdrawal amount |
+| `tokenAddress` | VARCHAR (nullable) | Token contract/mint address |
+| `status` | VARCHAR | `pending`, `approved`, `rejected`, or `expired` |
+| `requiredApprovals` | INTEGER | Number of approvals needed (default: 2) |
+| `currentApprovals` | INTEGER | Current approval count |
+| `expiresAt` | TIMESTAMP | Request expiration time (24h) |
+| `createdAt` | TIMESTAMP | Request creation time |
+
+### `withdrawal_votes`
+| Column | Type | Description |
+|--------|------|-------------|
+| `id` | UUID PK | Vote identifier |
+| `approvalId` | UUID FK | Approval request (cascade delete) |
+| `voterId` | UUID FK | User who voted |
+| `vote` | VARCHAR | `approve` or `reject` |
+| `createdAt` | TIMESTAMP | Vote time |
+
+Unique index on `(approvalId, voterId)` — one vote per user per request.
+
+### `indexer_cursors`
+| Column | Type | Description |
+|--------|------|-------------|
+| `id` | UUID PK | Record identifier |
+| `chain` | VARCHAR (unique) | Chain identifier (e.g., `ethereum`, `solana:address`) |
+| `cursor` | VARCHAR | Last processed block number, signature, or txid |
+| `updatedAt` | TIMESTAMP | Last update time |
+
 ---
 
 ## API Reference
@@ -409,11 +464,24 @@ All wallet endpoints require an authenticated session (httpOnly JWT cookie from 
 |--------|------|------|-------------|
 | `POST` | `/api/wallets/:id/rbf` | `{ originalTxHash, maxFeePerGas, maxPriorityFeePerGas }` | Replace pending Ethereum tx with higher gas (values in wei) |
 
+### Withdrawal Approvals
+
+| Method | Path | Body | Description |
+|--------|------|------|-------------|
+| `GET` | `/api/wallets/:id/approvals` | — | List pending withdrawal approvals for a wallet |
+| `POST` | `/api/wallets/:id/approvals` | `{ approvalId, vote }` | Submit approval vote (`approve` or `reject`) |
+
 ### Admin
 
 | Method | Path | Body | Description |
 |--------|------|------|-------------|
 | `POST` | `/api/admin/reconcile` | — | Reconcile all pending transactions (check on-chain status) |
+
+### Monitoring
+
+| Method | Path | Body | Description |
+|--------|------|------|-------------|
+| `GET` | `/api/metrics` | — | Prometheus-compatible metrics (text exposition format) |
 
 ### Health
 
@@ -512,6 +580,15 @@ Open [http://localhost:3000](http://localhost:3000).
 | `BTC_API_URL` | Yes | Blockstream Esplora API URL (default: `https://blockstream.info/testnet/api`) |
 | `ETHERSCAN_API_KEY` | No | Etherscan API key for higher rate limits on transaction history sync |
 | `APP_URL` | No | Defaults to `http://localhost:3000` |
+| `REDIS_URL` | No | Redis connection URL for distributed rate limiting (e.g., `redis://localhost:6379`) |
+| `INDEXER_POLL_MS` | No | Chain indexer poll interval in milliseconds (default: 15000) |
+| `ALERT_WEBHOOK_URL` | No | Webhook URL for alert delivery (PagerDuty, Slack, OpsGenie) |
+| `ETHEREUM_HOT_THRESHOLD` | No | Max ETH balance for hot wallets before sweep (default: 5) |
+| `SOLANA_HOT_THRESHOLD` | No | Max SOL balance for hot wallets before sweep (default: 100) |
+| `BITCOIN_HOT_THRESHOLD` | No | Max BTC balance for hot wallets before sweep (default: 0.5) |
+| `ETHEREUM_AUTO_APPROVE_LIMIT` | No | Max ETH withdrawal without approval (default: 1) |
+| `SOLANA_AUTO_APPROVE_LIMIT` | No | Max SOL withdrawal without approval (default: 50) |
+| `BITCOIN_AUTO_APPROVE_LIMIT` | No | Max BTC withdrawal without approval (default: 0.1) |
 | `SMTP_HOST` | No | SMTP server for email verification |
 | `SMTP_PORT` | No | SMTP port (default: 587) |
 | `SMTP_USER` | No | SMTP username |
@@ -723,7 +800,13 @@ VENCURA/
 │   │   │   └── reconcile.ts             # Pending transaction reconciliation
 │   │   ├── wallets/
 │   │   │   ├── access.ts                 # Role-based authorization (owner/editor/viewer)
+│   │   │   ├── hot-cold.ts               # Hot/cold wallet separation & sweep logic
 │   │   │   └── key.ts                    # Key management
+│   │   ├── indexer/
+│   │   │   └── chain-indexer.ts           # Real-time chain indexer (ETH/SOL/BTC)
+│   │   ├── monitoring/
+│   │   │   ├── metrics.ts                # Prometheus-compatible metrics
+│   │   │   └── alerts.ts                 # Severity-based alerting with webhooks
 │   │   ├── validation/
 │   │   │   └── addresses.ts              # Address validation (ETH + SOL + BTC)
 │   │   ├── pure/
@@ -790,16 +873,16 @@ VENCURA/
 | Key ceremony & rotation procedures | No formal process for key generation, backup, or rotation |
 | TLS termination & certificate pinning | Cookie-based sessions require HTTPS — plaintext in development exposes tokens |
 | Production authentication (OAuth 2.0 / SSO) | Email/password only — no federated identity, no enterprise SSO |
-| Distributed rate limiting (Redis-backed) | In-memory rate limiter resets on restart and doesn't work across multiple instances |
-| Chain indexer / webhook listener | Transaction history is lazily synced from Etherscan/Solana RPC — no real-time webhook or streaming indexer for instant inbound detection |
-| Hot/cold wallet separation | All wallets are "hot" — no cold storage segregation for large balances |
-| Withdrawal approval workflows | No multi-approval, no spending limits, no velocity checks |
-| Monitoring & alerting (Prometheus, Grafana, PagerDuty) | No observability into system health, failed transactions, or anomalous activity |
+| ~~Distributed rate limiting (Redis-backed)~~ | ✅ **Implemented** — Redis-backed sliding window rate limiter with in-memory fallback |
+| ~~Chain indexer / webhook listener~~ | ✅ **Implemented** — Real-time polling indexer for Ethereum, Solana, and Bitcoin |
+| ~~Hot/cold wallet separation~~ | ✅ **Implemented** — Temperature classification, threshold-based sweep detection, cold wallet guards |
+| ~~Withdrawal approval workflows~~ | ✅ **Implemented** — Multi-approval quorum, velocity checks, spending limits |
+| ~~Monitoring & alerting (Prometheus, Grafana, PagerDuty)~~ | ✅ **Implemented** — Prometheus metrics endpoint, severity-based alerting with webhook delivery |
 | Backup & disaster recovery | No automated database backups or tested recovery procedures |
 | Security audit & penetration testing | No formal security review has been performed |
 | Regulatory compliance (MiCA, state MTL, FinCEN MSB) | No licensing, no SAR filing, no compliance reporting |
 | SOC 2 / ISO 27001 controls | No formal security controls framework |
-| Solana precision handling | Floating-point lamport conversion — production systems should use integer lamports end-to-end |
+| ~~Solana precision handling~~ | ✅ **Implemented** — Integer lamports (BigInt) end-to-end, no floating-point |
 | Bitcoin fee estimation | Fixed 1000-satoshi fee — production systems need dynamic fee estimation from mempool data |
 | UTXO management / coin control | Naive UTXO selection — production needs optimized coin selection, dust management, and UTXO consolidation |
 

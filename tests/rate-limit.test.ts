@@ -11,51 +11,51 @@ describe("rate-limit", () => {
     vi.useRealTimers();
   });
 
-  it("allows requests within limit", () => {
+  it("allows requests within limit", async () => {
     for (let i = 0; i < 5; i++) {
-      const result = check("login", "192.168.1.1");
+      const result = await check("login", "192.168.1.1");
       expect(result.allowed).toBe(true);
       expect(result.remaining).toBe(4 - i);
     }
   });
 
-  it("blocks requests over limit", () => {
+  it("blocks requests over limit", async () => {
     for (let i = 0; i < 5; i++) {
-      check("login", "192.168.1.1");
+      await check("login", "192.168.1.1");
     }
-    const result = check("login", "192.168.1.1");
+    const result = await check("login", "192.168.1.1");
     expect(result.allowed).toBe(false);
     expect(result.remaining).toBe(0);
     expect(result.retryAfterMs).toBeGreaterThan(0);
   });
 
-  it("resets after window expires", () => {
+  it("resets after window expires", async () => {
     for (let i = 0; i < 5; i++) {
-      check("login", "192.168.1.1");
+      await check("login", "192.168.1.1");
     }
-    const blocked = check("login", "192.168.1.1");
+    const blocked = await check("login", "192.168.1.1");
     expect(blocked.allowed).toBe(false);
 
     vi.advanceTimersByTime(15 * 60 * 1000 + 1);
 
-    const result = check("login", "192.168.1.1");
+    const result = await check("login", "192.168.1.1");
     expect(result.allowed).toBe(true);
     expect(result.remaining).toBe(4);
   });
 
-  it("tracks independent keys separately", () => {
+  it("tracks independent keys separately", async () => {
     for (let i = 0; i < 5; i++) {
-      check("login", "192.168.1.1");
+      await check("login", "192.168.1.1");
     }
-    const blocked = check("login", "192.168.1.1");
+    const blocked = await check("login", "192.168.1.1");
     expect(blocked.allowed).toBe(false);
 
-    const otherIp = check("login", "10.0.0.1");
+    const otherIp = await check("login", "10.0.0.1");
     expect(otherIp.allowed).toBe(true);
   });
 
-  it("returns unknown category as always allowed", () => {
-    const result = check("nonexistent", "key");
+  it("returns unknown category as always allowed", async () => {
+    const result = await check("nonexistent", "key");
     expect(result.allowed).toBe(true);
   });
 
