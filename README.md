@@ -129,7 +129,7 @@ Handles user registration, login, session management, email verification, and TO
 Encrypts and decrypts private keys using AES-256-GCM with a 256-bit master key (`ENCRYPTION_KEY`). Each encryption produces a unique 12-byte IV and 16-byte authentication tag. The ciphertext, IV, and tag are stored as a single base64-encoded blob in the database.
 
 ### Chain Adapters (`src/lib/chains/`)
-Abstraction layer for multi-chain operations. The Ethereum adapter uses Viem to interact with Sepolia — wallet creation, balance queries (native ETH + ERC-20), message signing, and transaction submission. The Solana adapter uses @solana/web3.js and @solana/spl-token for Devnet — wallet creation, SOL + SPL token balances, signing, and transfers. The Bitcoin adapter uses bitcoinjs-lib with ecpair and tiny-secp256k1 for Testnet — SegWit (P2WPKH/bech32) wallet creation, UTXO-based balance queries, ECDSA message signing, and PSBT-based transaction construction and broadcasting via Blockstream Esplora API.
+Abstraction layer for multi-chain operations. The Ethereum adapter uses Viem to interact with Sepolia — wallet creation, balance queries (native ETH + ERC-20), message signing, and transaction submission. The Solana adapter uses @solana/web3.js and @solana/spl-token for Devnet — wallet creation, SOL + SPL token balances, signing, and transfers. The Bitcoin adapter uses bitcoinjs-lib with ecpair and tiny-secp256k1 for Testnet — SegWit (P2WPKH/bech32) wallet creation, UTXO-based balance queries, ECDSA message signing, dynamic fee estimation from the Blockstream mempool API, largest-first UTXO selection with exact-match optimization and dust absorption, and PSBT-based transaction construction and broadcasting via Blockstream Esplora API.
 
 ### Transaction History Sync (`src/lib/transactions/sync.ts`)
 Automatically syncs on-chain transaction history when a wallet's history is viewed and the cached data is stale (older than 2 minutes). Ethereum history is fetched from the Etherscan Sepolia API (native ETH + ERC-20 token transfers). Solana history is fetched directly from the RPC node (SOL system transfers + SPL token transfers). Bitcoin history is fetched from the Blockstream Esplora API (native BTC transfers). Transactions are deduplicated by `(txHash, walletId, direction)` and stored in the database for fast retrieval. Both inbound and outbound transactions are tracked.
@@ -197,6 +197,11 @@ Optional per-user TOTP (Time-based One-Time Password) using the otpauth library.
 
 ### Multi-Chain Abstraction
 Chain-specific logic is isolated behind a common interface (`src/lib/chains/types.ts`). Adding a new chain requires implementing the adapter interface — wallet creation, balance query, signing, and transaction submission — without modifying the API routes or middleware.
+
+### Preset Token Registry
+The UI provides dropdown selectors for popular tokens on each chain, eliminating the need to manually look up and paste contract addresses. For **Ethereum Sepolia**: USDT, USDC, DAI, WETH, LINK, UNI, AAVE, and WBTC (sourced from Aave V3 Sepolia, Chainlink, and Circle official deployments). For **Solana Devnet**: USDC, USDT, RAY (Raydium), and wSOL. Users can still enter custom token addresses manually. The presets are defined in `src/lib/tokens/erc20-presets.ts` and `src/lib/tokens/spl-presets.ts`.
+
+Users can also **import custom tokens** by pasting any ERC-20 contract address or SPL mint address. The system looks up the token's symbol on-chain (`symbol()` for ERC-20, Metaplex metadata for SPL) and adds it to the dropdown for the current session. Import endpoints: `GET /api/tokens/erc20?address=` and `GET /api/tokens/spl?mint=`.
 
 ### On-Chain Transaction History
 Transaction history is synced from external sources — Etherscan API for Ethereum Sepolia (native + ERC-20), Solana RPC for Devnet (system + SPL transfers), and Blockstream Esplora API for Bitcoin Testnet (native BTC). The sync is lazy: history is fetched when a user views their transactions and the last sync is older than 2 minutes. Both incoming and outgoing transactions are normalized into a common format and deduplicated on insert. An optional `ETHERSCAN_API_KEY` increases Etherscan rate limits.
@@ -471,6 +476,13 @@ All wallet endpoints require an authenticated session (httpOnly JWT cookie from 
 | `GET` | `/api/wallets/:id/approvals` | — | List pending withdrawal approvals for a wallet |
 | `POST` | `/api/wallets/:id/approvals` | `{ approvalId, vote }` | Submit approval vote (`approve` or `reject`) |
 
+### Token Import
+
+| Method | Path | Query | Description |
+|--------|------|-------|-------------|
+| `GET` | `/api/tokens/erc20` | `?address=0x...` | Look up ERC-20 symbol and decimals from contract address (Sepolia) |
+| `GET` | `/api/tokens/spl` | `?mint=...` | Look up SPL token symbol and decimals from mint address (Devnet) |
+
 ### Admin
 
 | Method | Path | Body | Description |
@@ -737,6 +749,9 @@ VENCURA/
 │   │   │   │   ├── resend-verification/route.ts
 │   │   │   │   └── 2fa/                  # TOTP setup/verify/enable/disable
 │   │   │   ├── health/route.ts           # System health check
+│   │   │   ├── tokens/
+│   │   │   │   ├── erc20/route.ts       # ERC-20 symbol lookup by contract address
+│   │   │   │   └── spl/route.ts         # SPL token symbol lookup by mint address
 │   │   │   └── wallets/
 │   │   │       ├── route.ts              # List + create wallets (owned + shared)
 │   │   │       └── [id]/
@@ -809,6 +824,9 @@ VENCURA/
 │   │   │   └── alerts.ts                 # Severity-based alerting with webhooks
 │   │   ├── validation/
 │   │   │   └── addresses.ts              # Address validation (ETH + SOL + BTC)
+│   │   ├── tokens/
+│   │   │   ├── erc20-presets.ts          # Preset ERC-20 tokens (Sepolia)
+│   │   │   └── spl-presets.ts            # Preset SPL tokens (Devnet)
 │   │   ├── pure/
 │   │   │   └── amounts.ts                # Amount conversion utilities
 │   │   └── env.ts                        # Environment variable parsing (Zod)
@@ -883,8 +901,8 @@ VENCURA/
 | Regulatory compliance (MiCA, state MTL, FinCEN MSB) | No licensing, no SAR filing, no compliance reporting |
 | SOC 2 / ISO 27001 controls | No formal security controls framework |
 | ~~Solana precision handling~~ | ✅ **Implemented** — Integer lamports (BigInt) end-to-end, no floating-point |
-| Bitcoin fee estimation | Fixed 1000-satoshi fee — production systems need dynamic fee estimation from mempool data |
-| UTXO management / coin control | Naive UTXO selection — production needs optimized coin selection, dust management, and UTXO consolidation |
+| Bitcoin fee estimation | ✅ **Implemented** — Dynamic fee estimation from Blockstream mempool API with fallback rate |
+| UTXO management / coin control | ✅ **Implemented** — Largest-first UTXO selection with exact-match optimization and dust absorption |
 
 > Building a production custodial wallet requires: licensed money transmission or e-money status, HSM or MPC infrastructure with certified key management, hot/cold wallet segregation, multi-signature approval workflows, real-time chain monitoring, regulatory compliance programs, SOC 2 Type II certification, and incident response procedures. **Do not use this code to custody, manage, or transfer real digital assets or funds.**
 

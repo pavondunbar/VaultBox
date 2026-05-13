@@ -2,6 +2,8 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { ShareManagement } from "@/components/ShareManagement";
+import { SEPOLIA_ERC20_TOKENS } from "@/lib/tokens/erc20-presets";
+import { DEVNET_SPL_TOKENS } from "@/lib/tokens/spl-presets";
 
 type BalanceNativeEth = {
   chain: "ethereum";
@@ -53,6 +55,31 @@ export function WalletDetail({
   const [balanceError, setBalanceError] = useState<string | null>(null);
   const [tokenQuery, setTokenQuery] = useState("");
   const [loadingBal, setLoadingBal] = useState(true);
+
+  // Custom imported tokens
+  const [customTokens, setCustomTokens] = useState<{ symbol: string; address: string }[]>([]);
+  const [importAddr, setImportAddr] = useState("");
+  const [importLoading, setImportLoading] = useState(false);
+  const [importErr, setImportErr] = useState<string | null>(null);
+
+  async function importToken() {
+    const addr = importAddr.trim();
+    if (!addr) return;
+    setImportErr(null);
+    setImportLoading(true);
+    try {
+      const endpoint = chain === "ethereum"
+        ? `/api/tokens/erc20?address=${encodeURIComponent(addr)}`
+        : `/api/tokens/spl?mint=${encodeURIComponent(addr)}`;
+      const res = await fetch(endpoint, { credentials: "include" });
+      const data = await res.json();
+      if (!res.ok) { setImportErr(data.error ?? "Lookup failed"); return; }
+      const key = chain === "ethereum" ? data.address : data.mint;
+      if (customTokens.some((t) => t.address === key)) { setImportErr("Already imported"); return; }
+      setCustomTokens((prev) => [...prev, { symbol: data.symbol, address: key }]);
+      setImportAddr("");
+    } catch { setImportErr("Lookup failed"); } finally { setImportLoading(false); }
+  }
 
   const loadBalance = useCallback(async () => {
     setLoadingBal(true);
@@ -300,6 +327,46 @@ export function WalletDetail({
           Leave token empty for native {chain === "ethereum" ? "ETH" : chain === "bitcoin" ? "BTC" : "SOL"}.
         </p>
         <div className="mt-4 flex flex-col gap-2 sm:flex-row">
+          {chain === "ethereum" && (
+            <select
+              value={SEPOLIA_ERC20_TOKENS.find((t) => t.address === tokenQuery)?.address ?? ""}
+              onChange={(e) => setTokenQuery(e.target.value)}
+              className="rounded-lg border border-white/10 bg-ink-950 px-3 py-2 text-xs outline-none focus:ring-2 focus:ring-mint-500/40"
+            >
+              <option value="">Native ETH</option>
+              {SEPOLIA_ERC20_TOKENS.map((t) => (
+                <option key={t.address} value={t.address}>
+                  {t.symbol} — {t.name}
+                </option>
+              ))}
+              {customTokens.map((t) => (
+                              <option key={t.address} value={t.address}>
+                                {t.symbol} (imported)
+                              </option>
+                            ))}
+                            <option value="custom">Custom address…</option>
+            </select>
+          )}
+          {chain === "solana" && (
+            <select
+              value={DEVNET_SPL_TOKENS.find((t) => t.mint === tokenQuery)?.mint ?? ""}
+              onChange={(e) => setTokenQuery(e.target.value)}
+              className="rounded-lg border border-white/10 bg-ink-950 px-3 py-2 text-xs outline-none focus:ring-2 focus:ring-mint-500/40"
+            >
+              <option value="">Native SOL</option>
+              {DEVNET_SPL_TOKENS.map((t) => (
+                <option key={t.mint} value={t.mint}>
+                  {t.symbol} — {t.name}
+                </option>
+              ))}
+              {customTokens.map((t) => (
+                              <option key={t.address} value={t.address}>
+                                {t.symbol} (imported)
+                              </option>
+                            ))}
+                            <option value="custom">Custom mint…</option>
+            </select>
+          )}
           <input
             type="text"
             placeholder={chain === "ethereum" ? "0x token…" : "Mint…"}
@@ -315,6 +382,26 @@ export function WalletDetail({
             Refresh
           </button>
         </div>
+        {chain !== "bitcoin" && (
+          <div className="mt-3 flex flex-col gap-2 sm:flex-row">
+            <input
+              type="text"
+              placeholder={chain === "ethereum" ? "Import ERC-20 address (0x…)" : "Import SPL mint address…"}
+              value={importAddr}
+              onChange={(e) => setImportAddr(e.target.value)}
+              className="flex-1 rounded-lg border border-white/10 bg-ink-950 px-3 py-2 font-mono text-xs outline-none focus:ring-2 focus:ring-mint-500/40"
+            />
+            <button
+              type="button"
+              disabled={importLoading || !importAddr.trim()}
+              onClick={() => void importToken()}
+              className="rounded-lg border border-mint-600/50 px-4 py-2 text-xs text-mint-400 hover:bg-mint-600/10 disabled:opacity-50"
+            >
+              {importLoading ? "Looking up…" : "Import"}
+            </button>
+          </div>
+        )}
+        {importErr && <p className="mt-1 text-xs text-red-400">{importErr}</p>}
         <div className="mt-4 min-h-[4rem]">
           {loadingBal ? (
             <p className="text-sm text-slate-500">Loading…</p>
@@ -390,13 +477,55 @@ export function WalletDetail({
             className="w-full rounded-lg border border-white/10 bg-ink-950 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-mint-500/40"
           />
           {chain !== "bitcoin" && (
-            <input
-              type="text"
-              placeholder={tokenLabel}
-              value={sendToken}
-              onChange={(e) => setSendToken(e.target.value)}
-              className="w-full rounded-lg border border-white/10 bg-ink-950 px-3 py-2 font-mono text-xs outline-none focus:ring-2 focus:ring-mint-500/40"
-            />
+            <>
+              {chain === "ethereum" && (
+                <select
+                  value={SEPOLIA_ERC20_TOKENS.find((t) => t.address === sendToken)?.address ?? ""}
+                  onChange={(e) => setSendToken(e.target.value)}
+                  className="w-full rounded-lg border border-white/10 bg-ink-950 px-3 py-2 text-xs outline-none focus:ring-2 focus:ring-mint-500/40"
+                >
+                  <option value="">Native ETH (no token)</option>
+                  {SEPOLIA_ERC20_TOKENS.map((t) => (
+                    <option key={t.address} value={t.address}>
+                      {t.symbol} — {t.name}
+                    </option>
+                  ))}
+                  {customTokens.map((t) => (
+                                  <option key={t.address} value={t.address}>
+                                    {t.symbol} (imported)
+                                  </option>
+                                ))}
+                                <option value="custom">Custom address…</option>
+                </select>
+              )}
+              {chain === "solana" && (
+                <select
+                  value={DEVNET_SPL_TOKENS.find((t) => t.mint === sendToken)?.mint ?? ""}
+                  onChange={(e) => setSendToken(e.target.value)}
+                  className="w-full rounded-lg border border-white/10 bg-ink-950 px-3 py-2 text-xs outline-none focus:ring-2 focus:ring-mint-500/40"
+                >
+                  <option value="">Native SOL (no token)</option>
+                  {DEVNET_SPL_TOKENS.map((t) => (
+                    <option key={t.mint} value={t.mint}>
+                      {t.symbol} — {t.name}
+                    </option>
+                  ))}
+                  {customTokens.map((t) => (
+                                  <option key={t.address} value={t.address}>
+                                    {t.symbol} (imported)
+                                  </option>
+                                ))}
+                                <option value="custom">Custom mint…</option>
+                </select>
+              )}
+              <input
+                type="text"
+                placeholder={tokenLabel}
+                value={sendToken}
+                onChange={(e) => setSendToken(e.target.value)}
+                className="w-full rounded-lg border border-white/10 bg-ink-950 px-3 py-2 font-mono text-xs outline-none focus:ring-2 focus:ring-mint-500/40"
+              />
+            </>
           )}
           {chain === "ethereum" && (
             <input
@@ -456,13 +585,55 @@ export function WalletDetail({
             className="w-full rounded-lg border border-white/10 bg-ink-950 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-mint-500/40"
           />
           {chain !== "bitcoin" && (
-            <input
-              type="text"
-              placeholder={tokenLabel}
-              value={xferToken}
-              onChange={(e) => setXferToken(e.target.value)}
-              className="w-full rounded-lg border border-white/10 bg-ink-950 px-3 py-2 font-mono text-xs outline-none focus:ring-2 focus:ring-mint-500/40"
-            />
+            <>
+              {chain === "ethereum" && (
+                <select
+                  value={SEPOLIA_ERC20_TOKENS.find((t) => t.address === xferToken)?.address ?? ""}
+                  onChange={(e) => setXferToken(e.target.value)}
+                  className="w-full rounded-lg border border-white/10 bg-ink-950 px-3 py-2 text-xs outline-none focus:ring-2 focus:ring-mint-500/40"
+                >
+                  <option value="">Native ETH (no token)</option>
+                  {SEPOLIA_ERC20_TOKENS.map((t) => (
+                    <option key={t.address} value={t.address}>
+                      {t.symbol} — {t.name}
+                    </option>
+                  ))}
+                  {customTokens.map((t) => (
+                                  <option key={t.address} value={t.address}>
+                                    {t.symbol} (imported)
+                                  </option>
+                                ))}
+                                <option value="custom">Custom address…</option>
+                </select>
+              )}
+              {chain === "solana" && (
+                <select
+                  value={DEVNET_SPL_TOKENS.find((t) => t.mint === xferToken)?.mint ?? ""}
+                  onChange={(e) => setXferToken(e.target.value)}
+                  className="w-full rounded-lg border border-white/10 bg-ink-950 px-3 py-2 text-xs outline-none focus:ring-2 focus:ring-mint-500/40"
+                >
+                  <option value="">Native SOL (no token)</option>
+                  {DEVNET_SPL_TOKENS.map((t) => (
+                    <option key={t.mint} value={t.mint}>
+                      {t.symbol} — {t.name}
+                    </option>
+                  ))}
+                  {customTokens.map((t) => (
+                                  <option key={t.address} value={t.address}>
+                                    {t.symbol} (imported)
+                                  </option>
+                                ))}
+                                <option value="custom">Custom mint…</option>
+                </select>
+              )}
+              <input
+                type="text"
+                placeholder={tokenLabel}
+                value={xferToken}
+                onChange={(e) => setXferToken(e.target.value)}
+                className="w-full rounded-lg border border-white/10 bg-ink-950 px-3 py-2 font-mono text-xs outline-none focus:ring-2 focus:ring-mint-500/40"
+              />
+            </>
           )}
           <button
             type="button"

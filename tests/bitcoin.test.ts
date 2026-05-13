@@ -5,6 +5,8 @@ import {
   parseBtcToSatoshis,
   signBtcMessage,
   keyPairFromWif,
+  estimateTxVbytes,
+  selectUtxos,
 } from "@/lib/chains/bitcoin";
 import { isValidBtcAddress } from "@/lib/validation/addresses";
 import { formatSatoshis as formatSatoshisFromAmounts } from "@/lib/pure/amounts";
@@ -126,5 +128,101 @@ describe("keyPairFromWif", () => {
     const w = createBitcoinWallet();
     const kp = keyPairFromWif(w.privateKeyWif);
     expect(kp.publicKey).toBeTruthy();
+  });
+});
+
+describe("estimateTxVbytes", () => {
+  it("calculates vbytes for 1 input, 1 output", () => {
+    const vbytes = estimateTxVbytes(1, 1);
+    // 10.5 + 68 + 31 = 109.5 → 110
+    expect(vbytes).toBe(110);
+  });
+
+  it("calculates vbytes for 1 input, 2 outputs", () => {
+    const vbytes = estimateTxVbytes(1, 2);
+    // 10.5 + 68 + 62 = 140.5 → 141
+    expect(vbytes).toBe(141);
+  });
+
+  it("calculates vbytes for 3 inputs, 2 outputs", () => {
+    const vbytes = estimateTxVbytes(3, 2);
+    // 10.5 + 204 + 62 = 276.5 → 277
+    expect(vbytes).toBe(277);
+  });
+
+  it("scales linearly with inputs", () => {
+    const v1 = estimateTxVbytes(1, 2);
+    const v2 = estimateTxVbytes(2, 2);
+    expect(v2 - v1).toBe(68); // INPUT_VBYTES
+  });
+});
+
+describe("selectUtxos", () => {
+  const utxos = [
+    { txid: "a", vout: 0, value: 10_000 },
+    { txid: "b", vout: 0, value: 50_000 },
+    { txid: "c", vout: 0, value: 100_000 },
+    { txid: "d", vout: 0, value: 200_000 },
+  ];
+
+  it("returns null for empty UTXO set", () => {
+    expect(selectUtxos([], 10_000, 2)).toBeNull();
+  });
+
+  it("returns null when funds are insufficient", () => {
+    const small = [{ txid: "x", vout: 0, value: 100 }];
+    expect(selectUtxos(small, 50_000, 2)).toBeNull();
+  });
+
+  it("selects the largest UTXO first", () => {
+    const result = selectUtxos(utxos, 50_000, 2);
+    expect(result).not.toBeNull();
+    // Should pick the 200k UTXO (largest) since it covers target + fee
+    expect(result!.selected[0].value).toBe(200_000);
+  });
+
+  it("uses fewer inputs when possible", () => {
+    const result = selectUtxos(utxos, 50_000, 2);
+    expect(result).not.toBeNull();
+    expect(result!.selected.length).toBe(1);
+  });
+
+  it("selects multiple UTXOs when needed", () => {
+    const small = [
+      { txid: "a", vout: 0, value: 5_000 },
+      { txid: "b", vout: 0, value: 5_000 },
+      { txid: "c", vout: 0, value: 5_000 },
+    ];
+    const result = selectUtxos(small, 12_000, 1);
+    expect(result).not.toBeNull();
+    expect(result!.selected.length).toBeGreaterThan(1);
+  });
+
+  it("fee is always positive", () => {
+    const result = selectUtxos(utxos, 10_000, 5);
+    expect(result).not.toBeNull();
+    expect(result!.fee).toBeGreaterThan(0);
+  });
+
+  it("absorbs dust into fee (exact match optimization)", () => {
+    // Create a UTXO that's just slightly more than target + 1-in/1-out fee
+    const feeRate = 2;
+    const fee1in1out = feeRate * estimateTxVbytes(1, 1); // 220 sats
+    const dustAmount = 300; // less than 546 dust threshold
+    const target = 50_000;
+    const exactish = [{ txid: "x", vout: 0, value: target + fee1in1out + dustAmount }];
+    const result = selectUtxos(exactish, target, feeRate);
+    expect(result).not.toBeNull();
+    expect(result!.selected.length).toBe(1);
+    // Fee should include the absorbed dust
+    expect(result!.fee).toBe(fee1in1out + dustAmount);
+  });
+
+  it("higher fee rate results in higher fee", () => {
+    const lowFee = selectUtxos(utxos, 50_000, 1);
+    const highFee = selectUtxos(utxos, 50_000, 10);
+    expect(lowFee).not.toBeNull();
+    expect(highFee).not.toBeNull();
+    expect(highFee!.fee).toBeGreaterThan(lowFee!.fee);
   });
 });

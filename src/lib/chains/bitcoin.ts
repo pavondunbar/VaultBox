@@ -32,6 +32,94 @@ type Utxo = {
   value: number;
 };
 
+// P2WPKH vbyte constants
+const OVERHEAD_VBYTES = 10.5; // version + marker + flag + locktime
+const INPUT_VBYTES = 68; // per SegWit input (witness discounted)
+const OUTPUT_VBYTES = 31; // per P2WPKH output
+
+const DUST_THRESHOLD = 546; // satoshis
+
+const FALLBACK_FEE_RATE = 2; // sat/vB fallback when API unavailable
+
+/**
+ * Estimate transaction vsize for P2WPKH inputs/outputs.
+ */
+export function estimateTxVbytes(inputCount: number, outputCount: number): number {
+  return Math.ceil(
+    OVERHEAD_VBYTES + inputCount * INPUT_VBYTES + outputCount * OUTPUT_VBYTES,
+  );
+}
+
+/**
+ * Fetch recommended fee rate (sat/vB) from Blockstream Esplora mempool API.
+ * Uses the "halfHourFee" target (~3 blocks). Falls back to FALLBACK_FEE_RATE on error.
+ */
+export async function estimateFeeRate(apiUrl: string): Promise<number> {
+  try {
+    const res = await fetch(`${apiUrl}/fee-estimates`, {
+      signal: AbortSignal.timeout(5_000),
+    });
+    if (!res.ok) return FALLBACK_FEE_RATE;
+    const estimates = (await res.json()) as Record<string, number>;
+    // Target ~3 blocks confirmation; fall back through priorities
+    const rate = estimates["3"] ?? estimates["6"] ?? estimates["1"];
+    return rate && rate > 0 ? Math.ceil(rate) : FALLBACK_FEE_RATE;
+  } catch {
+    return FALLBACK_FEE_RATE;
+  }
+}
+
+/**
+ * Select UTXOs using a largest-first strategy that minimizes inputs while
+ * avoiding unnecessary change outputs (exact match within tolerance).
+ */
+export function selectUtxos(
+  utxos: Utxo[],
+  target: number,
+  feeRate: number,
+): { selected: Utxo[]; fee: number } | null {
+  if (utxos.length === 0) return null;
+
+  // Sort descending by value for largest-first selection
+  const sorted = [...utxos].sort((a, b) => b.value - a.value);
+
+  // Try to find a single UTXO that covers target + fee with no change (within dust)
+  for (const u of sorted) {
+    const fee = feeRate * estimateTxVbytes(1, 1); // 1 input, 1 output (no change)
+    const remainder = u.value - target - fee;
+    if (remainder >= 0 && remainder <= DUST_THRESHOLD) {
+      return { selected: [u], fee: fee + remainder }; // absorb dust into fee
+    }
+  }
+
+  // Largest-first accumulation with change output
+  const selected: Utxo[] = [];
+  let inputSum = 0;
+  for (const u of sorted) {
+    selected.push(u);
+    inputSum += u.value;
+    const outputCount = 2; // recipient + change
+    const fee = feeRate * estimateTxVbytes(selected.length, outputCount);
+    if (inputSum >= target + fee) {
+      const change = inputSum - target - fee;
+      // If change is dust, absorb it into fee
+      if (change > 0 && change <= DUST_THRESHOLD) {
+        return { selected, fee: fee + change };
+      }
+      return { selected, fee };
+    }
+  }
+
+  // Last resort: check if we can cover with 1 output (no change) using all UTXOs
+  const totalFee = feeRate * estimateTxVbytes(selected.length, 1);
+  if (inputSum >= target + totalFee) {
+    const remainder = inputSum - target - totalFee;
+    return { selected, fee: totalFee + remainder };
+  }
+
+  return null; // insufficient funds
+}
+
 async function fetchUtxos(apiUrl: string, address: string): Promise<Utxo[]> {
   const res = await fetch(`${apiUrl}/address/${address}/utxo`, {
     signal: AbortSignal.timeout(10_000),
@@ -83,18 +171,17 @@ export async function sendBtcNative(params: {
   const satoshis = parseBtcToSatoshis(amountBtc);
   if (satoshis <= 0) throw new Error("Invalid BTC amount");
 
-  const utxos = await fetchUtxos(apiUrl, address);
-  const FEE = 1000; // fixed fee in satoshis for testnet
-  const needed = satoshis + FEE;
+  const [utxos, feeRate] = await Promise.all([
+    fetchUtxos(apiUrl, address),
+    estimateFeeRate(apiUrl),
+  ]);
 
-  let inputSum = 0;
-  const selected: Utxo[] = [];
-  for (const u of utxos) {
-    selected.push(u);
-    inputSum += u.value;
-    if (inputSum >= needed) break;
-  }
-  if (inputSum < needed) throw new Error("Insufficient funds");
+  const result = selectUtxos(utxos, satoshis, feeRate);
+  if (!result) throw new Error("Insufficient funds");
+
+  const { selected, fee } = result;
+  const inputSum = selected.reduce((s, u) => s + u.value, 0);
+  const change = inputSum - satoshis - fee;
 
   const psbt = new bitcoin.Psbt({ network: testnet });
 
@@ -108,8 +195,7 @@ export async function sendBtcNative(params: {
   }
 
   psbt.addOutput({ address: to, value: satoshis });
-  const change = inputSum - satoshis - FEE;
-  if (change > 546) {
+  if (change > DUST_THRESHOLD) {
     psbt.addOutput({ address, value: change });
   }
 
