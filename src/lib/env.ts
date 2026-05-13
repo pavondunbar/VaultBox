@@ -4,8 +4,8 @@ const serverEnvSchema = z.object({
   DATABASE_URL: z.string().min(1),
   JWT_SECRET: z.string().min(32),
   ENCRYPTION_KEY: z.string().regex(/^[0-9a-fA-F]{64}$/),
-  ETH_RPC_URL: z.string().url(),
-  SOL_RPC_URL: z.string().url(),
+  ETH_RPC_URL: z.string().min(1),
+  SOL_RPC_URL: z.string().min(1),
   BTC_API_URL: z.string().url(),
 });
 

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { desc, eq } from "drizzle-orm";
+import { desc, eq, sql } from "drizzle-orm";
 import { getSessionUser } from "@/lib/auth/session";
 import { requireWalletAccess } from "@/lib/wallets/access";
 import { db } from "@/lib/db";
@@ -11,7 +11,7 @@ import { check, rateLimitResponse } from "@/lib/security/rate-limit";
 const idSchema = z.string().uuid();
 
 export async function GET(
-  _request: Request,
+  request: Request,
   context: { params: Promise<{ id: string }> },
 ) {
   const session = await getSessionUser();
@@ -37,6 +37,15 @@ export async function GET(
 
   await syncIfStale(wallet);
 
+  const url = new URL(request.url);
+  const limit = Math.min(Math.max(parseInt(url.searchParams.get("limit") ?? "50", 10) || 50, 1), 100);
+  const offset = Math.max(parseInt(url.searchParams.get("offset") ?? "0", 10) || 0, 0);
+
+  const [{ count: total }] = await db
+    .select({ count: sql<number>`count(*)::int` })
+    .from(transactions)
+    .where(eq(transactions.walletId, wallet.id));
+
   const rows = await db
     .select({
       id: transactions.id,
@@ -55,7 +64,8 @@ export async function GET(
     .from(transactions)
     .where(eq(transactions.walletId, wallet.id))
     .orderBy(desc(transactions.createdAt))
-    .limit(100);
+    .limit(limit)
+    .offset(offset);
 
-  return NextResponse.json({ transactions: rows });
+  return NextResponse.json({ transactions: rows, pagination: { total, limit, offset } });
 }

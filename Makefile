@@ -1,8 +1,8 @@
 .PHONY: help install dev up down build start restart \
-       test test-unit lint typecheck integrity \
+       test test-unit test-integration lint typecheck integrity \
        db-create db-push db-generate db-studio shell-pg \
-       db-users db-wallets db-transactions db-shares db-ledger db-ledger-balance db-wallet-balances \
-       health clean nuke logs demo open-docs \
+       db-users db-wallets db-transactions db-shares db-ledger db-ledger-balance db-wallet-balances db-wallet-balances-fast db-audit \
+       health health-api clean nuke logs demo open-docs \
        rbf-help rbf-replace rbf-pending \
        btc-help btc-balance
 
@@ -68,6 +68,9 @@ test: ## Run all tests
 
 test-unit: ## Run unit tests (same suite — no DB or RPC needed)
 	pnpm test
+
+test-integration: ## Run integration tests only
+	pnpm exec vitest run tests/integration.test.ts
 
 lint: ## Run ESLint
 	pnpm lint
@@ -168,6 +171,22 @@ db-wallet-balances: ## Show wallet balances derived from ledger
 		HAVING COUNT(le.id) > 0 \
 		ORDER BY u.email, w.chain;"
 
+db-audit: ## List recent audit log entries (limit 20)
+	@. ./.env 2>/dev/null; psql "$$DATABASE_URL" -c \
+		"SELECT al.id, u.email, al.action, al.resource, al.resource_id, al.ip, al.created_at \
+		FROM audit_logs al \
+		LEFT JOIN users u ON al.user_id = u.id \
+		ORDER BY al.created_at DESC LIMIT 20;"
+
+db-wallet-balances-fast: ## Show wallet balances from materialized table (O(1) lookup)
+	@. ./.env 2>/dev/null; psql "$$DATABASE_URL" -c \
+		"SELECT u.email, wb.chain, LEFT(w.address, 12) || '...' AS wallet, \
+		w.label, wb.balance, wb.token_symbol, wb.token_address, wb.updated_at \
+		FROM wallet_balances wb \
+		JOIN wallets w ON wb.wallet_id = w.id \
+		JOIN users u ON w.user_id = u.id \
+		ORDER BY u.email, wb.chain;"
+
 # ── RBF (Replace-By-Fee) ─────────────────────
 
 rbf-help: ## Show RBF usage instructions
@@ -249,6 +268,10 @@ health: ## Check if the app is responding
 	@curl -sf $(APP_URL) > /dev/null \
 		&& echo "\033[32mHealthy\033[0m — $(APP_URL) is up" \
 		|| echo "\033[31mUnhealthy\033[0m — $(APP_URL) is not responding"
+
+health-api: ## Hit /api/health for detailed status (DB connectivity, latency)
+	@curl -sf $(APP_URL)/api/health | python3 -m json.tool 2>/dev/null \
+		|| echo "\033[31mUnhealthy\033[0m — $(APP_URL)/api/health is not responding"
 
 # ── Cleanup ──────────────────────────────────
 

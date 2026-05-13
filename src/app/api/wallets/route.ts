@@ -16,11 +16,15 @@ const createSchema = z.object({
   label: z.string().max(64).optional(),
 });
 
-export async function GET() {
+export async function GET(request: Request) {
   const session = await getSessionUser();
   if (!session) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+
+  const url = new URL(request.url);
+  const limit = Math.min(Math.max(parseInt(url.searchParams.get("limit") ?? "50", 10) || 50, 1), 100);
+  const offset = Math.max(parseInt(url.searchParams.get("offset") ?? "0", 10) || 0, 0);
 
   const owned = await db
     .select({
@@ -48,12 +52,15 @@ export async function GET() {
     .where(eq(walletShares.userId, session.id))
     .orderBy(desc(wallets.createdAt));
 
-  const rows = [
+  const all = [
     ...owned.map((w) => ({ ...w, role: "owner" as const })),
     ...shared.map((w) => ({ ...w, role: w.role as "editor" | "viewer" })),
   ];
 
-  return NextResponse.json({ wallets: rows });
+  const total = all.length;
+  const rows = all.slice(offset, offset + limit);
+
+  return NextResponse.json({ wallets: rows, pagination: { total, limit, offset } });
 }
 
 export async function POST(request: Request) {

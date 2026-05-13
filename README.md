@@ -38,7 +38,7 @@ Full-stack custodial wallet platform for **Ethereum Sepolia**, **Solana Devnet**
 | Authentication | Email/password + TOTP 2FA (otpauth) + email verification (nodemailer) |
 | Security | Rate limiting, CSP headers, HSTS, bcryptjs password hashing |
 | Ledger | Double-entry accounting (debits = credits) with advisory locking |
-| Tests | Vitest (15 unit test files — no DB or RPC required) |
+| Tests | Vitest (17 test files — unit + integration, no DB or RPC required) |
 | Package Manager | pnpm |
 
 VenCura implements the core backend logic of a **custodial cryptocurrency wallet platform** — the kind of infrastructure that underpins institutional digital asset custody services, fintech wallet products, and crypto-native banking platforms.
@@ -155,6 +155,21 @@ Allows users to speed up stuck Ethereum transactions by resubmitting with the sa
 ### Transaction Reconciliation (`src/lib/transactions/reconcile.ts`)
 Batch-checks all pending transactions against their respective blockchains and updates their status to `confirmed` or `failed`. Ethereum transactions are checked via `getTransactionReceipt` (status 1 = success, status 0 = revert). Solana transactions are checked via `getSignatureStatuses` RPC. Bitcoin transactions are checked via the Blockstream `/tx/{txid}/status` endpoint. Triggered via `POST /api/admin/reconcile`.
 
+### Audit Log (`src/lib/security/audit.ts`)
+Persistent, queryable audit trail for security-sensitive operations. Every wallet creation, send, transfer, sign, share, and authentication event is recorded in the `audit_logs` table with user ID, action type, resource, IP address, and optional JSON metadata. The `recordAudit()` helper accepts typed actions and persists to PostgreSQL. Queryable via `make db-audit`.
+
+### Idempotency Keys (`src/lib/security/idempotency.ts`)
+Prevents duplicate transaction broadcasts when clients retry failed requests. The `/send` and `/transfer` endpoints accept an `Idempotency-Key` header. If a matching key exists for the user, the cached response is replayed with an `X-Idempotent-Replay: true` header. On success, the response is stored in the `idempotency_keys` table for future deduplication.
+
+### Circuit Breaker (`src/lib/chains/circuit-breaker.ts`)
+Protects the system from cascading failures when chain RPCs are degraded. Tracks failures per endpoint — after 5 consecutive failures, the circuit opens and rejects requests instantly for 30 seconds (avoiding timeout accumulation). After the cooldown, a single test request is allowed through (half-open state). On success, the circuit resets to closed.
+
+### Multi-RPC Failover (`src/lib/chains/rpc-failover.ts`)
+Supports multiple RPC endpoints per chain via comma-separated environment variables (e.g., `ETH_RPC_URL=https://primary.io,https://fallback.io`). The `withRpcFailover()` function tries each URL in order, skipping endpoints whose circuit breaker is open. Returns the first successful result. Provides automatic resilience against single-provider outages.
+
+### Health Check (`src/app/api/health/route.ts`)
+Structured health endpoint at `GET /api/health` that checks database connectivity with latency measurement. Returns `{ status: "healthy"|"degraded", timestamp, checks: { database: { status, latencyMs } } }`. Returns HTTP 200 when healthy, 503 when degraded. Used by load balancers and monitoring systems.
+
 ---
 
 ## Key Features & Design Patterns
@@ -199,6 +214,21 @@ All transactions follow double-entry bookkeeping where every debit has a corresp
 
 ### Concurrency Control via Advisory Locks
 The `/send` and `/transfer` endpoints wrap all database operations (balance check, blockchain broadcast, transaction insert, ledger entry) in a single PostgreSQL transaction. Before executing, they acquire a transaction-scoped advisory lock on the sender's wallet ID using `pg_advisory_xact_lock(hashtext(walletId))`. This prevents two concurrent requests from reading the same balance and both passing validation — the second request blocks until the first commits, then sees the updated balance. Transfers lock both the sender and receiver wallets in sorted order to prevent deadlocks. No schema changes are needed — advisory locks are a PostgreSQL built-in.
+
+### Idempotency Keys
+The `/send` and `/transfer` endpoints accept an optional `Idempotency-Key` header. When provided, the system checks if a response has already been cached for that key + user combination. If so, the cached response is replayed immediately with an `X-Idempotent-Replay: true` header — no duplicate transaction is broadcast. This protects against network retries, double-clicks, and client-side retry logic causing duplicate on-chain transactions.
+
+### Circuit Breaker & Multi-RPC Failover
+Chain RPC endpoints are protected by a per-URL circuit breaker. After 5 consecutive failures, the circuit opens and rejects requests instantly for 30 seconds — preventing timeout accumulation and cascading failures. `ETH_RPC_URL` and `SOL_RPC_URL` support comma-separated values for multiple endpoints. The `withRpcFailover()` function tries each URL in order, automatically skipping those with open circuits, and returns the first successful result.
+
+### Materialized Wallet Balances
+The `wallet_balances` table maintains a pre-computed balance per wallet per token, updated atomically on every ledger write. This provides O(1) balance lookups without aggregating the full ledger — critical at scale when wallets have thousands of ledger entries. The append-only ledger remains the source of truth; the balance table is a read-optimized projection.
+
+### Health Check Endpoint
+`GET /api/health` returns structured system status including database connectivity and latency. Returns HTTP 200 with `"healthy"` when all checks pass, or HTTP 503 with `"degraded"` when any check fails. Designed for load balancer health probes and monitoring systems.
+
+### Paginated API Responses
+The `GET /api/wallets` and `GET /api/wallets/:id/transactions` endpoints support `?limit=` and `?offset=` query parameters (default 50, max 100). Responses include a `pagination` object with `{ total, limit, offset }` metadata for client-side pagination controls.
 
 ---
 
@@ -290,6 +320,43 @@ Unique index on `(txHash, walletId, entryType)` prevents duplicate entries. The 
 | `status` | VARCHAR | `pending`, `confirmed`, or `failed` (default: `pending`) |
 | `createdAt` | TIMESTAMP | Record creation time |
 
+### `audit_logs`
+| Column | Type | Description |
+|--------|------|-------------|
+| `id` | UUID PK | Log entry identifier |
+| `userId` | UUID (nullable) | User who performed the action |
+| `action` | VARCHAR | Action type (e.g., `wallet.create`, `wallet.send`, `auth.login`) |
+| `resource` | VARCHAR | Resource type (e.g., `wallet`, `auth`) |
+| `resourceId` | VARCHAR (nullable) | Specific resource identifier |
+| `ip` | VARCHAR (nullable) | Client IP address |
+| `metadata` | TEXT (nullable) | JSON string with additional context |
+| `createdAt` | TIMESTAMP | Event time |
+
+### `idempotency_keys`
+| Column | Type | Description |
+|--------|------|-------------|
+| `id` | UUID PK | Record identifier |
+| `key` | VARCHAR | Client-provided idempotency key |
+| `userId` | UUID | User who made the request |
+| `response` | TEXT | Cached JSON response body |
+| `statusCode` | VARCHAR | HTTP status code of cached response |
+| `createdAt` | TIMESTAMP | Cache time |
+
+Unique index on `(key, userId)` — each key is scoped to a single user.
+
+### `wallet_balances`
+| Column | Type | Description |
+|--------|------|-------------|
+| `id` | UUID PK | Record identifier |
+| `walletId` | UUID FK | Wallet (cascade delete) |
+| `chain` | VARCHAR | `ethereum`, `solana`, or `bitcoin` |
+| `tokenSymbol` | VARCHAR (nullable) | Token symbol |
+| `tokenAddress` | VARCHAR (nullable) | Token contract address |
+| `balance` | VARCHAR | Current balance as string (default: `"0"`) |
+| `updatedAt` | TIMESTAMP | Last update time |
+
+Unique index on `(walletId, tokenAddress)` — one balance row per wallet per token.
+
 ---
 
 ## API Reference
@@ -320,13 +387,13 @@ All wallet endpoints require an authenticated session (httpOnly JWT cookie from 
 
 | Method | Path | Body / Query | Description |
 |--------|------|--------------|-------------|
-| `GET` | `/api/wallets` | — | List all user wallets |
+| `GET` | `/api/wallets` | `?limit=&offset=` | List all user wallets (paginated, default 50, max 100) |
 | `POST` | `/api/wallets` | `{ chain, label? }` | Create wallet (`ethereum`, `solana`, or `bitcoin`) |
 | `GET` | `/api/wallets/:id/balance` | `?token=` (ERC-20) or `?mint=` (SPL) | Get balance (omit params for native) |
 | `POST` | `/api/wallets/:id/sign` | `{ message }` | Sign message → `{ signedMessage }` |
 | `POST` | `/api/wallets/:id/send` | `{ to, amount, tokenAddress?, mint? }` | Send on-chain → `{ transactionHash }` |
 | `POST` | `/api/wallets/:id/transfer` | `{ toWalletId, amount, tokenAddress?, mint? }` | Transfer between own wallets |
-| `GET` | `/api/wallets/:id/transactions` | — | On-chain transaction history (inbound + outbound, auto-synced) |
+| `GET` | `/api/wallets/:id/transactions` | `?limit=&offset=` | On-chain transaction history (paginated, auto-synced) |
 
 ### Shared Wallets
 
@@ -347,6 +414,12 @@ All wallet endpoints require an authenticated session (httpOnly JWT cookie from 
 | Method | Path | Body | Description |
 |--------|------|------|-------------|
 | `POST` | `/api/admin/reconcile` | — | Reconcile all pending transactions (check on-chain status) |
+
+### Health
+
+| Method | Path | Body | Description |
+|--------|------|------|-------------|
+| `GET` | `/api/health` | — | System health check (DB connectivity + latency) |
 
 See `examples/api-client-example.ts` for a minimal `fetch`-based API client.
 
@@ -434,8 +507,8 @@ Open [http://localhost:3000](http://localhost:3000).
 | `DATABASE_URL` | Yes | PostgreSQL connection string |
 | `JWT_SECRET` | Yes | Random string, **at least 32 characters** |
 | `ENCRYPTION_KEY` | Yes | `openssl rand -hex 32` → 64 hex characters (256-bit key) |
-| `ETH_RPC_URL` | Yes | Sepolia RPC endpoint (Infura, Alchemy, etc.) |
-| `SOL_RPC_URL` | No | Defaults to `https://api.devnet.solana.com` |
+| `ETH_RPC_URL` | Yes | Sepolia RPC endpoint (Infura, Alchemy, etc.) — supports comma-separated URLs for failover |
+| `SOL_RPC_URL` | No | Defaults to `https://api.devnet.solana.com` — supports comma-separated URLs for failover |
 | `BTC_API_URL` | Yes | Blockstream Esplora API URL (default: `https://blockstream.info/testnet/api`) |
 | `ETHERSCAN_API_KEY` | No | Etherscan API key for higher rate limits on transaction history sync |
 | `APP_URL` | No | Defaults to `http://localhost:3000` |
@@ -469,6 +542,7 @@ Open [http://localhost:3000](http://localhost:3000).
 |---------|-------------|
 | `make test` | Run all tests |
 | `make test-unit` | Run unit tests (no DB or RPC required) |
+| `make test-integration` | Run integration tests only |
 | `make lint` | Run ESLint |
 | `make typecheck` | Run TypeScript type checker |
 | `make integrity` | Run lint + typecheck + tests |
@@ -494,12 +568,15 @@ Open [http://localhost:3000](http://localhost:3000).
 | `make db-ledger` | List recent ledger entries (limit 20) |
 | `make db-ledger-balance` | Verify ledger balances (debits should equal credits) |
 | `make db-wallet-balances` | Show wallet balances derived from ledger |
+| `make db-wallet-balances-fast` | Show wallet balances from materialized table (O(1) lookup) |
+| `make db-audit` | List recent audit log entries (limit 20) |
 
 ### Utilities
 
 | Command | Description |
 |---------|-------------|
 | `make health` | Check if the app is responding |
+| `make health-api` | Hit `/api/health` for detailed status (DB connectivity, latency) |
 | `make clean` | Remove build artifacts (`.next`, `tsconfig.tsbuildinfo`) |
 | `make nuke` | Remove all generated files and `node_modules` |
 | `make open-docs` | Open README in browser |
@@ -548,8 +625,10 @@ pnpm exec vitest --coverage
 | `password.test.ts` | bcryptjs password hashing and comparison |
 | `rate-limit.test.ts` | Sliding-window rate limiter logic |
 | `rbf.test.ts` | Replace-By-Fee transaction replacement logic |
+| `rpc-failover.test.ts` | Circuit breaker states, URL parsing, and multi-RPC failover |
 | `solana-history.test.ts` | Solana RPC transaction history parsing and normalization |
 | `sync.test.ts` | Stale-sync detection and transaction deduplication logic |
+| `integration.test.ts` | API route integration tests (health, pagination, idempotency, audit) |
 | `ledger.test.ts` | Double-entry ledger debit/credit pair creation |
 | `totp.test.ts` | TOTP secret generation and code verification |
 | `vault.test.ts` | AES-256-GCM encrypt/decrypt round-trip |
@@ -580,6 +659,7 @@ VENCURA/
 │   │   │   │   ├── verify-email/route.ts # Email verification
 │   │   │   │   ├── resend-verification/route.ts
 │   │   │   │   └── 2fa/                  # TOTP setup/verify/enable/disable
+│   │   │   ├── health/route.ts           # System health check
 │   │   │   └── wallets/
 │   │   │       ├── route.ts              # List + create wallets (owned + shared)
 │   │   │       └── [id]/
@@ -620,6 +700,8 @@ VENCURA/
 │   │   │   ├── solana-history.ts         # Solana RPC transaction history
 │   │   │   ├── bitcoin.ts               # bitcoinjs-lib (Testnet)
 │   │   │   ├── bitcoin-history.ts        # Blockstream Esplora transaction history
+│   │   │   ├── circuit-breaker.ts        # Per-endpoint circuit breaker
+│   │   │   ├── rpc-failover.ts           # Multi-RPC failover with circuit breaker
 │   │   │   └── types.ts                  # Chain-agnostic interface + NormalizedTx
 │   │   ├── crypto/
 │   │   │   └── vault.ts                  # AES-256-GCM encrypt/decrypt
@@ -630,7 +712,9 @@ VENCURA/
 │   │   │   └── wallet-lock.ts           # Advisory lock utilities
 │   │   ├── security/
 │   │   │   ├── logger.ts                 # Request/event logging
-│   │   │   └── rate-limit.ts             # Rate limiting
+│   │   │   ├── rate-limit.ts             # Rate limiting
+│   │   │   ├── audit.ts                  # Persistent audit log
+│   │   │   └── idempotency.ts            # Idempotency key deduplication
 │   │   ├── transactions/
 │   │   │   ├── sync.ts                   # Stale-check + sync from chain explorers
 │   │   │   ├── ledger.ts                 # Double-entry ledger recording
@@ -658,8 +742,10 @@ VENCURA/
 │   ├── password.test.ts
 │   ├── rate-limit.test.ts
 │   ├── rbf.test.ts
+│   ├── rpc-failover.test.ts
 │   ├── solana-history.test.ts
 │   ├── sync.test.ts
+│   ├── integration.test.ts
 │   ├── ledger.test.ts
 │   ├── totp.test.ts
 │   ├── vault.test.ts
@@ -673,6 +759,8 @@ VENCURA/
 │   ├── 0004_dizzy_wonder_man.sql         # Ledger entries table
 │   ├── 0005_living_jack_power.sql        # RBF transactions table
 │   ├── 0006_add_transaction_status.sql   # Transaction status column
+│   ├── 0007_flashy_speed_demon.sql       # Audit logs + idempotency keys
+│   ├── 0008_huge_senator_kelly.sql       # Wallet balances + performance indexes
 │   └── meta/                             # Drizzle metadata
 │
 ├── examples/

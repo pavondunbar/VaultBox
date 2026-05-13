@@ -50,6 +50,20 @@
       "when": 1778698354495,
       "tag": "0006_brave_dazzler",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1778702116811,
+      "tag": "0007_flashy_speed_demon",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1778702479442,
+      "tag": "0008_huge_senator_kelly",
+      "breakpoints": true
     }
   ]
 }

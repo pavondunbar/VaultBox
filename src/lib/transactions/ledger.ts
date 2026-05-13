@@ -1,6 +1,7 @@
 import { db } from "@/lib/db";
 import type { DbContext } from "@/lib/db/types";
-import { ledgerEntries } from "@/lib/db/schema";
+import { ledgerEntries, walletBalances } from "@/lib/db/schema";
+import { sql, and, eq } from "drizzle-orm";
 
 export type LedgerEntry = {
   txHash: string;
@@ -31,6 +32,28 @@ export async function recordLedgerEntries(
   await ctx.insert(ledgerEntries).values(values).onConflictDoNothing({
     target: [ledgerEntries.txHash, ledgerEntries.walletId, ledgerEntries.entryType],
   });
+
+  // Update materialized wallet_balances
+  for (const entry of entries) {
+    const delta = entry.entryType === "credit" ? entry.amount : `-${entry.amount}`;
+    await ctx
+      .insert(walletBalances)
+      .values({
+        walletId: entry.walletId,
+        chain: entry.chain,
+        tokenSymbol: entry.tokenSymbol,
+        tokenAddress: entry.tokenAddress,
+        balance: entry.amount,
+        updatedAt: new Date(),
+      })
+      .onConflictDoUpdate({
+        target: [walletBalances.walletId, walletBalances.tokenAddress],
+        set: {
+          balance: sql`(${walletBalances.balance}::numeric + ${delta}::numeric)::text`,
+          updatedAt: new Date(),
+        },
+      });
+  }
 }
 
 export function createDebitCreditPair(params: {

@@ -24,6 +24,7 @@ import { recordLedgerEntries, createDebitCreditPair } from "@/lib/transactions/l
 import { acquireWalletLock } from "@/lib/db/wallet-lock";
 import { getOnChainBalance } from "@/lib/wallets/balance";
 import { numericGte } from "@/lib/pure/amounts";
+import { getCachedResponse, cacheResponse } from "@/lib/security/idempotency";
 
 const idSchema = z.string().uuid();
 
@@ -42,6 +43,13 @@ export async function POST(
   const session = await getSessionUser();
   if (!session) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  // Idempotency key support
+  const idempotencyKey = request.headers.get("Idempotency-Key");
+  if (idempotencyKey) {
+    const cached = await getCachedResponse(idempotencyKey, session.id);
+    if (cached) return cached;
   }
 
   const { id } = await context.params;
@@ -229,6 +237,9 @@ export async function POST(
         { error: result.error },
         { status: result.status },
       );
+    }
+    if (idempotencyKey) {
+      await cacheResponse(idempotencyKey, session.id, result, 200);
     }
     return NextResponse.json(result);
   } catch (e) {

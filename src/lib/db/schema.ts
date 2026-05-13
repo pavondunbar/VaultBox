@@ -1,5 +1,6 @@
 import {
   boolean,
+  index,
   pgTable,
   text,
   timestamp,
@@ -57,6 +58,7 @@ export const transactions = pgTable(
       table.walletId,
       table.direction,
     ),
+    index("tx_wallet_created_idx").on(table.walletId, table.createdAt),
   ],
 );
 
@@ -81,6 +83,7 @@ export const ledgerEntries = pgTable(
       table.walletId,
       table.entryType,
     ),
+    index("ledger_wallet_entry_idx").on(table.walletId, table.entryType),
   ],
 );
 
@@ -122,9 +125,59 @@ export const rbfTransactions = pgTable("rbf_transactions", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
+export const auditLogs = pgTable("audit_logs", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  userId: uuid("user_id"),
+  action: text("action").notNull(),
+  resource: text("resource").notNull(),
+  resourceId: text("resource_id"),
+  ip: text("ip"),
+  metadata: text("metadata"), // JSON string for extra context
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const idempotencyKeys = pgTable(
+  "idempotency_keys",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    key: text("key").notNull(),
+    userId: uuid("user_id").notNull(),
+    response: text("response").notNull(), // JSON string of the cached response
+    statusCode: text("status_code").notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => [
+    uniqueIndex("idempotency_key_user_idx").on(table.key, table.userId),
+  ],
+);
+
+export const walletBalances = pgTable(
+  "wallet_balances",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    walletId: uuid("wallet_id")
+      .references(() => wallets.id, { onDelete: "cascade" })
+      .notNull(),
+    chain: text("chain").notNull(),
+    tokenSymbol: text("token_symbol"),
+    tokenAddress: text("token_address"),
+    balance: text("balance").notNull().default("0"),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  },
+  (table) => [
+    uniqueIndex("wallet_balances_wallet_token_idx").on(
+      table.walletId,
+      table.tokenAddress,
+    ),
+  ],
+);
+
 export type User = typeof users.$inferSelect;
 export type WalletRow = typeof wallets.$inferSelect;
 export type TransactionRow = typeof transactions.$inferSelect;
 export type WalletShareRow = typeof walletShares.$inferSelect;
 export type LedgerEntryRow = typeof ledgerEntries.$inferSelect;
 export type RbfTransactionRow = typeof rbfTransactions.$inferSelect;
+export type AuditLogRow = typeof auditLogs.$inferSelect;
+export type IdempotencyKeyRow = typeof idempotencyKeys.$inferSelect;
+export type WalletBalanceRow = typeof walletBalances.$inferSelect;
