@@ -456,6 +456,8 @@ All wallet endpoints require an authenticated session (httpOnly JWT cookie from 
 |--------|------|--------------|-------------|
 | `GET` | `/api/wallets` | `?limit=&offset=` | List all user wallets (paginated, default 50, max 100) |
 | `POST` | `/api/wallets` | `{ chain, label? }` | Create wallet (`ethereum`, `solana`, or `bitcoin`) |
+| `PATCH` | `/api/wallets/:id` | `{ label }` | Rename wallet label (owner only) |
+| `DELETE` | `/api/wallets/:id` | `?force=true` | Delete wallet (owner only, warns if balance > 0, force bypasses) |
 | `GET` | `/api/wallets/:id/balance` | `?token=` (ERC-20) or `?mint=` (SPL) | Get balance (omit params for native) |
 | `POST` | `/api/wallets/:id/sign` | `{ message }` | Sign message → `{ signedMessage }` |
 | `POST` | `/api/wallets/:id/send` | `{ to, amount, tokenAddress?, mint? }` | Send on-chain → `{ transactionHash }` |
@@ -538,6 +540,8 @@ From the dashboard, create Ethereum (Sepolia) or Solana (Devnet) wallets. Each w
 - **Transfer** — move funds between your own wallets (settles on-chain)
 - **History** — view on-chain transaction history (both inbound and outbound, auto-synced from Etherscan / Solana RPC / Blockstream)
 - **Status** — transactions show real-time status (pending → confirmed or failed)
+- **Rename** — change the wallet label from the "Manage Wallet" section (owner only)
+- **Delete** — delete a wallet (owner only). If the wallet has a remaining balance, a warning is shown. The user can confirm deletion anyway — remaining funds will be permanently inaccessible.
 
 ### 6. Share Wallets
 From the wallet detail page, owners can share wallets with other registered users by entering their email address and selecting a role:
@@ -835,6 +839,7 @@ VENCURA/
 │   │   │   └── wallets/
 │   │   │       ├── route.ts              # List + create wallets (owned + shared)
 │   │   │       └── [id]/
+│   │   │           ├── route.ts          # Rename (PATCH) + delete (DELETE) wallet
 │   │   │           ├── balance/route.ts  # Native + token balances
 │   │   │           ├── send/route.ts     # On-chain send
 │   │   │           ├── sign/route.ts     # Message signing
