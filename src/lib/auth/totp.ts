@@ -25,7 +25,7 @@ export async function generateQrDataUrl(
   const { TOTP, Secret } = require("otpauth") as typeof import("otpauth");
   const QRCode = require("qrcode") as typeof import("qrcode");
   const totp = new TOTP({
-    issuer: "VenCura",
+    issuer: "VaultBox",
     label: email,
     algorithm: "SHA1",
     digits: 6,

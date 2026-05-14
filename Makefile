@@ -8,7 +8,7 @@
        btc-help btc-balance
 
 # ──────────────────────────────────────────────
-# VenCura — Custodial Wallet Platform
+# VaultBox — Custodial Wallet Platform
 # ──────────────────────────────────────────────
 
 APP_PORT   ?= 3000
@@ -45,9 +45,9 @@ down: ## Stop the dev server (if backgrounded via make logs)
 	fi
 
 logs: ## Start dev server in background and tail output
-	@pnpm dev > /tmp/vencura-dev.log 2>&1 & echo $$! > $(PID_FILE)
+	@pnpm dev > /tmp/vaultbox-dev.log 2>&1 & echo $$! > $(PID_FILE)
 	@echo "Dev server started (PID $$(cat $(PID_FILE))). Tailing logs..."
-	@tail -f /tmp/vencura-dev.log
+	@tail -f /tmp/vaultbox-dev.log
 
 demo: ## Start dev server and open the app in a browser
 	@pnpm dev & sleep 3 && open $(APP_URL)
@@ -243,7 +243,7 @@ rbf-replace: ## Replace a pending tx with higher gas. Usage: make rbf-replace WA
 	fi
 	@curl -s -X POST $(APP_URL)/api/wallets/$(WALLET)/rbf \
 		-H 'Content-Type: application/json' \
-		-b /tmp/vencura-cookie.txt \
+		-b /tmp/vaultbox-cookie.txt \
 		-d '{"originalTxHash":"$(TX)","maxFeePerGas":"$(FEE)","maxPriorityFeePerGas":"$(TIP)"}' | \
 		python3 -m json.tool 2>/dev/null || cat
 
@@ -261,7 +261,7 @@ rbf-pending: ## Show recent Ethereum transactions for a wallet. Usage: make rbf-
 
 btc-help: ## Show Bitcoin testnet usage instructions
 	@printf '\n\033[36mBitcoin (Testnet) — Native BTC on Bitcoin Testnet\033[0m\n\n'
-	@echo '  VenCura creates SegWit (bech32/tb1) wallets on Bitcoin Testnet.'
+	@echo '  VaultBox creates SegWit (bech32/tb1) wallets on Bitcoin Testnet.'
 	@echo ''
 	@echo '  Faucets:'
 	@echo '    • https://coinfaucet.eu/en/btc-testnet/'
@@ -307,7 +307,7 @@ clean: ## Remove build artifacts
 	rm -rf .next tsconfig.tsbuildinfo
 
 nuke: clean ## Remove all generated files and reinstall
-	rm -rf node_modules .dev.pid /tmp/vencura-dev.log
+	rm -rf node_modules .dev.pid /tmp/vaultbox-dev.log
 	@echo "Nuked. Run 'make install' to restore."
 
 # ── Docs ─────────────────────────────────────

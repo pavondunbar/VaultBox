@@ -117,7 +117,7 @@ export function WalletDetail({
     return () => clearInterval(id);
   }, [loadBalance]);
 
-  const [signMsg, setSignMsg] = useState("Hello from VenCura");
+  const [signMsg, setSignMsg] = useState("Hello from VaultBox");
   const [signed, setSigned] = useState<string | null>(null);
   const [signErr, setSignErr] = useState<string | null>(null);
   const [signLoading, setSignLoading] = useState(false);
@@ -699,7 +699,7 @@ export function WalletDetail({
       <section className="lg:col-span-2 rounded-xl border border-white/10 bg-ink-900/50 p-6">
         <h2 className="text-lg font-medium text-white">Transaction history</h2>
         <p className="mt-1 text-xs text-slate-500">
-          Transactions recorded by VenCura for this wallet.
+          Transactions recorded by VaultBox for this wallet.
         </p>
         <div className="mt-4 overflow-x-auto">
           <table className="w-full text-left text-sm">

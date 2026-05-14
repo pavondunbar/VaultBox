@@ -33,7 +33,7 @@ export default async function DashboardLayout({
         <div className="mx-auto flex max-w-5xl items-center justify-between px-6 py-4">
           <Link href="/dashboard" className="flex items-baseline gap-2">
             <span className="text-sm font-semibold tracking-wide text-mint-400">
-              VenCura
+              VaultBox
             </span>
             <span className="text-xs text-slate-500">dashboard</span>
           </Link>

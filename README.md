@@ -1,4 +1,4 @@
-# VenCura — Custodial Wallet Platform
+# VaultBox — Custodial Wallet Platform
 
 > **SANDBOX / EDUCATIONAL USE ONLY — NOT FOR PRODUCTION**
 > This codebase is a reference implementation designed for learning, prototyping, and architectural exploration. It is **not audited, not legally reviewed, and must not be used to custody real funds, manage real private keys, or process real financial transactions.** See the [Production Warning](#production-warning) section for full details.
@@ -42,7 +42,7 @@ Full-stack custodial wallet platform for **Ethereum Sepolia**, **Solana Devnet**
 | Tests | Vitest (21 test files — unit + integration, no DB or RPC required) |
 | Package Manager | pnpm |
 
-VenCura implements the core backend logic of a **custodial cryptocurrency wallet platform** — the kind of infrastructure that underpins institutional digital asset custody services, fintech wallet products, and crypto-native banking platforms.
+VaultBox implements the core backend logic of a **custodial cryptocurrency wallet platform** — the kind of infrastructure that underpins institutional digital asset custody services, fintech wallet products, and crypto-native banking platforms.
 
 The system handles the full wallet lifecycle: account registration with email verification, multi-chain wallet creation (Ethereum, Solana, and Bitcoin), private key generation and encrypted storage, balance queries across native and token assets, message signing, on-chain transaction submission, Replace-By-Fee (RBF) for speeding up pending Ethereum transactions, internal transfers between a user's own wallets, on-chain transaction history synced from block explorers (Etherscan for Ethereum, Solana RPC for Solana, Blockstream API for Bitcoin), transaction status tracking with reconciliation, and role-based wallet sharing with other registered users.
 
@@ -548,7 +548,7 @@ From the wallet detail page, owners can share wallets with other registered user
 - **Editor** — can sign, send, and transfer
 - **Viewer** — read-only access to balances and history
 
-The invited user must already have a VenCura account. Shared wallets appear on the invitee's dashboard with a role badge. Owners can revoke access at any time.
+The invited user must already have a VaultBox account. Shared wallets appear on the invitee's dashboard with a role badge. Owners can revoke access at any time.
 
 ---
 
@@ -565,8 +565,8 @@ The invited user must already have a VenCura account. Shared wallets appear on t
 
 ```bash
 # Clone the repository
-git clone https://github.com/pavondunbar/Vencura
-cd Vencura
+git clone https://github.com/pavondunbar/VaultBox
+cd VaultBox
 
 # Install dependencies
 make install
@@ -582,13 +582,13 @@ cp .env.example .env
 # Edit .env: set DATABASE_URL, JWT_SECRET, ENCRYPTION_KEY, ETH_RPC_URL, SOL_RPC_URL, BTC_API_URL
 # For DATABASE_URL, simply replace 'user' with a username and 'pass' with a password. Leave everything else as is. 
 
-# Create the vencura database
+# Create the vaultbox database
 make db-create
 
-# Generate the schemas for the vencura database
+# Generate the schemas for the vaultbox database
 make db-generate
 
-# Push the schema to the vencura database
+# Push the schema to the vaultbox database
 make db-push
 
 # Start the dev server
@@ -769,7 +769,7 @@ All tests run without external dependencies — no database connection, no chain
 
 ## Monitoring Setup
 
-VenCura includes a pre-configured Prometheus + Grafana stack for visualizing application metrics.
+VaultBox includes a pre-configured Prometheus + Grafana stack for visualizing application metrics.
 
 ### Prerequisites
 
@@ -778,7 +778,7 @@ VenCura includes a pre-configured Prometheus + Grafana stack for visualizing app
 ### Quick Start
 
 ```bash
-# Start VenCura
+# Start VaultBox
 make dev
 
 # Start monitoring stack
@@ -788,18 +788,18 @@ make monitoring-up
 - **Grafana:** [http://localhost:3001](http://localhost:3001) — login: `admin` / `admin` (anonymous viewing enabled)
 - **Prometheus:** [http://localhost:9090](http://localhost:9090) — raw query interface
 
-A pre-built "VenCura Overview" dashboard is auto-loaded with panels for:
+A pre-built "VaultBox Overview" dashboard is auto-loaded with panels for:
 
 | Panel | Metric |
 |-------|--------|
-| Request Rate | `rate(vencura_http_requests_total[5m])` |
-| Error Rate | `rate(vencura_http_errors_total[5m])` |
-| P95 Latency | `histogram_quantile(0.95, rate(vencura_http_request_duration_seconds_bucket[5m]))` |
-| Transactions Broadcast | `rate(vencura_tx_broadcast_total[5m])` |
-| Rate Limit Hits | `rate(vencura_rate_limit_hits_total[5m])` |
-| Active Wallets | `vencura_active_wallets` |
-| Pending Approvals | `vencura_approvals_pending` |
-| Indexer Health | `rate(vencura_indexer_ticks_total[5m])` vs errors |
+| Request Rate | `rate(vaultbox_http_requests_total[5m])` |
+| Error Rate | `rate(vaultbox_http_errors_total[5m])` |
+| P95 Latency | `histogram_quantile(0.95, rate(vaultbox_http_request_duration_seconds_bucket[5m]))` |
+| Transactions Broadcast | `rate(vaultbox_tx_broadcast_total[5m])` |
+| Rate Limit Hits | `rate(vaultbox_rate_limit_hits_total[5m])` |
+| Active Wallets | `vaultbox_active_wallets` |
+| Pending Approvals | `vaultbox_approvals_pending` |
+| Indexer Health | `rate(vaultbox_indexer_ticks_total[5m])` vs errors |
 
 The dashboard auto-refreshes every 10 seconds. Prometheus scrapes `GET /api/metrics` every 15 seconds.
 
@@ -814,7 +814,7 @@ make monitoring-down
 ## Project Structure
 
 ```
-VENCURA/
+VAULTBOX/
 ├── src/
 │   ├── app/                              # Next.js App Router
 │   │   ├── (dashboard)/                  # Authenticated route group
@@ -963,7 +963,7 @@ VENCURA/
 │       │   ├── datasources/prometheus.yml  # Auto-connect Grafana → Prometheus
 │       │   └── dashboards/dashboards.yml   # Dashboard auto-loading config
 │       └── dashboards/
-│           └── vencura-overview.json     # Pre-built overview dashboard
+│           └── vaultbox-overview.json     # Pre-built overview dashboard
 │
 ├── load-tests/                           # k6 load testing scripts
 │   ├── k6-smoke.js                       # Smoke test (1 VU sanity check)

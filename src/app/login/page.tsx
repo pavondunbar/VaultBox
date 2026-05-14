@@ -72,7 +72,7 @@ export default function LoginPage() {
     <main className="mx-auto flex min-h-screen max-w-md flex-col justify-center px-6 py-16">
       <div className="rounded-2xl border border-white/10 bg-ink-900/80 p-8 shadow-xl backdrop-blur">
         <p className="text-center text-sm uppercase tracking-[0.2em] text-mint-400">
-          VenCura
+          VaultBox
         </p>
         <h1 className="mt-2 text-center text-2xl font-semibold text-white">
           {requires2FA ? "Two-Factor Authentication" : "Sign in"}

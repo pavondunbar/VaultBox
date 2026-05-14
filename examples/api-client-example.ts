@@ -1,13 +1,13 @@
 /**
- * VenCura API usage sketch (TypeScript).
+ * VaultBox API usage sketch (TypeScript).
  *
- * After you log in via the browser, copy the `vencura_token` cookie value and:
+ * After you log in via the browser, copy the `vaultbox_token` cookie value and:
  *
- *   export VENCURA_COOKIE='vencura_token=<jwt>; Path=/; HttpOnly'
+ *   export VAULTBOX_COOKIE='vaultbox_token=<jwt>; Path=/; HttpOnly'
  *
  * Or pass only the cookie pair:
  *
- *   export VENCURA_COOKIE='vencura_token=eyJhbGciOi...'
+ *   export VAULTBOX_COOKIE='vaultbox_token=eyJhbGciOi...'
  *
  * Then call helpers below from a script or REPL (same origin / BASE_URL).
  */
@@ -15,11 +15,11 @@
 const BASE = process.env.BASE_URL ?? "http://localhost:3000";
 
 function cookieHeader(): string {
-  const c = process.env.VENCURA_COOKIE?.trim();
+  const c = process.env.VAULTBOX_COOKIE?.trim();
   if (!c) {
-    throw new Error("Set VENCURA_COOKIE to your session cookie string");
+    throw new Error("Set VAULTBOX_COOKIE to your session cookie string");
   }
-  return c.startsWith("vencura_token=") ? c : `vencura_token=${c}`;
+  return c.startsWith("vaultbox_token=") ? c : `vaultbox_token=${c}`;
 }
 
 export async function listWallets() {

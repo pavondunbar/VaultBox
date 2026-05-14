@@ -31,7 +31,7 @@ export async function sendVerificationEmail(
   await transport.sendMail({
     from: smtp.from,
     to: toEmail,
-    subject: "VenCura — Verify your email",
+    subject: "VaultBox — Verify your email",
     text: `Verify your email by visiting: ${verificationUrl}`,
     html: `<p>Click <a href="${verificationUrl}">here</a> to verify your email.</p>`,
   });

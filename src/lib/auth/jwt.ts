@@ -1,6 +1,6 @@
 import { SignJWT, jwtVerify } from "jose";
 
-const COOKIE_NAME = "vencura_token";
+const COOKIE_NAME = "vaultbox_token";
 
 export function getCookieName(): typeof COOKIE_NAME {
   return COOKIE_NAME;
