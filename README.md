@@ -38,7 +38,7 @@ Full-stack custodial wallet platform for **Ethereum Sepolia**, **Solana Devnet**
 | Authentication | Email/password + TOTP 2FA (otpauth) + email verification (nodemailer) |
 | Security | Rate limiting, CSP headers, HSTS, bcryptjs password hashing |
 | Ledger | Double-entry accounting (debits = credits) with advisory locking |
-| Tests | Vitest (20 test files — unit + integration, no DB or RPC required) |
+| Tests | Vitest (21 test files — unit + integration, no DB or RPC required) |
 | Package Manager | pnpm |
 
 VenCura implements the core backend logic of a **custodial cryptocurrency wallet platform** — the kind of infrastructure that underpins institutional digital asset custody services, fintech wallet products, and crypto-native banking platforms.
@@ -127,6 +127,12 @@ Handles user registration, login, session management, email verification, and TO
 
 ### Crypto Vault (`src/lib/crypto/vault.ts`)
 Encrypts and decrypts private keys using AES-256-GCM with a 256-bit master key (`ENCRYPTION_KEY`). Each encryption produces a unique 12-byte IV and 16-byte authentication tag. The ciphertext, IV, and tag are stored as a single base64-encoded blob in the database.
+
+### Key Rotation (`src/lib/crypto/key-rotation.ts`)
+Supports rotating the master encryption key without downtime. The `rotateEncryptionKey(oldKey, newKey)` function decrypts all wallet private keys with the old master key and re-encrypts them with the new key in configurable batches (default 50). The `generateEncryptionKey()` helper produces a new 256-bit key. An admin API endpoint (`POST /api/admin/rotate-key`) validates the old key matches the current `ENCRYPTION_KEY` before executing the rotation. Failed wallets are tracked and reported without aborting the entire operation.
+
+### MPC Threshold Signing (`src/lib/crypto/mpc.ts`)
+Implements Shamir's Secret Sharing over GF(256) for multi-party computation (MPC) key management. Private keys can be split into `n` shares with a configurable threshold `k` (default: 2-of-3). Any `k` shares can reconstruct the original key via Lagrange interpolation — no single party holds enough information to sign alone. The `splitPrivateKey()` and `reconstructPrivateKey()` functions handle hex-encoded keys. An MPC signing endpoint (`POST /api/wallets/:id/mpc-sign`) accepts shares from separate custodians, reconstructs the key in memory, signs the message, and discards the reconstructed key. In production, each share would reside on a separate server or with a separate custodian.
 
 ### Chain Adapters (`src/lib/chains/`)
 Abstraction layer for multi-chain operations. The Ethereum adapter uses Viem to interact with Sepolia — wallet creation, balance queries (native ETH + ERC-20), message signing, and transaction submission. The Solana adapter uses @solana/web3.js and @solana/spl-token for Devnet — wallet creation, SOL + SPL token balances, signing, and transfers. The Bitcoin adapter uses bitcoinjs-lib with ecpair and tiny-secp256k1 for Testnet — SegWit (P2WPKH/bech32) wallet creation, UTXO-based balance queries, ECDSA message signing, dynamic fee estimation from the Blockstream mempool API, largest-first UTXO selection with exact-match optimization and dust absorption, and PSBT-based transaction construction and broadcasting via Blockstream Esplora API.
@@ -454,6 +460,7 @@ All wallet endpoints require an authenticated session (httpOnly JWT cookie from 
 | `POST` | `/api/wallets/:id/send` | `{ to, amount, tokenAddress?, mint? }` | Send on-chain → `{ transactionHash }` |
 | `POST` | `/api/wallets/:id/transfer` | `{ toWalletId, amount, tokenAddress?, mint? }` | Transfer between own wallets |
 | `GET` | `/api/wallets/:id/transactions` | `?limit=&offset=` | On-chain transaction history (paginated, auto-synced) |
+| `POST` | `/api/wallets/:id/mpc-sign` | `{ message, shares: [{index, data}] }` | MPC threshold sign (reconstruct key from shares + sign) |
 
 ### Shared Wallets
 
@@ -488,6 +495,7 @@ All wallet endpoints require an authenticated session (httpOnly JWT cookie from 
 | Method | Path | Body | Description |
 |--------|------|------|-------------|
 | `POST` | `/api/admin/reconcile` | — | Reconcile all pending transactions (check on-chain status) |
+| `POST` | `/api/admin/rotate-key` | `{ oldKey, newKey }` | Rotate master encryption key (re-encrypts all wallet keys) |
 
 ### Monitoring
 
@@ -685,6 +693,20 @@ Open [http://localhost:3000](http://localhost:3000).
 | `make btc-help` | Show Bitcoin testnet usage instructions |
 | `make btc-balance ADDR=<tb1...>` | Check Bitcoin testnet balance via Blockstream API |
 
+### Load Testing
+
+| Command | Description |
+|---------|-------------|
+| `make load-smoke` | Run k6 smoke test (1 VU, sanity check) |
+| `make load-test` | Run k6 load test (ramp to 100 VUs) |
+| `make load-stress` | Run k6 stress test (ramp to 300 VUs) |
+
+### Key Rotation
+
+| Command | Description |
+|---------|-------------|
+| `make rotate-key` | Generate a new encryption key and show rotation instructions |
+
 ---
 
 ## Testing
@@ -722,6 +744,7 @@ pnpm exec vitest --coverage
 | `totp.test.ts` | TOTP secret generation and code verification |
 | `vault.test.ts` | AES-256-GCM encrypt/decrypt round-trip |
 | `wallet-access.test.ts` | Role-based wallet access control (owner/editor/viewer) |
+| `mpc.test.ts` | Shamir's Secret Sharing split/reconstruct (2-of-3, 3-of-5) |
 
 All tests run without external dependencies — no database connection, no chain RPC, no SMTP server. Pure unit tests against isolated modules.
 
@@ -761,6 +784,7 @@ VENCURA/
 │   │   │           ├── transfer/route.ts # Internal transfer
 │   │   │           ├── transactions/route.ts  # Transaction history (auto-synced)
 │   │   │           ├── rbf/route.ts      # Replace-By-Fee (speed up pending ETH tx)
+│   │   │           ├── mpc-sign/route.ts # MPC threshold sign (reconstruct + sign)
 │   │   │           └── shares/
 │   │   │               ├── route.ts      # List + invite wallet shares
 │   │   │               └── [shareId]/route.ts  # Revoke share
@@ -796,7 +820,9 @@ VENCURA/
 │   │   │   ├── rpc-failover.ts           # Multi-RPC failover with circuit breaker
 │   │   │   └── types.ts                  # Chain-agnostic interface + NormalizedTx
 │   │   ├── crypto/
-│   │   │   └── vault.ts                  # AES-256-GCM encrypt/decrypt
+│   │   │   ├── vault.ts                  # AES-256-GCM encrypt/decrypt
+│   │   │   ├── key-rotation.ts           # Master key rotation (batch re-encryption)
+│   │   │   └── mpc.ts                    # Shamir's Secret Sharing (MPC threshold signing)
 │   │   ├── db/
 │   │   │   ├── index.ts                  # Database connection
 │   │   │   ├── schema.ts                # Drizzle ORM schema
@@ -850,7 +876,8 @@ VENCURA/
 │   ├── ledger.test.ts
 │   ├── totp.test.ts
 │   ├── vault.test.ts
-│   └── wallet-access.test.ts
+│   ├── wallet-access.test.ts
+│   └── mpc.test.ts
 │
 ├── drizzle/                              # Database migrations
 │   ├── 0000_tiny_matthew_murdock.sql     # Initial schema
@@ -866,6 +893,16 @@ VENCURA/
 │
 ├── examples/
 │   └── api-client-example.ts             # Fetch-based API client reference
+│
+├── load-tests/                           # k6 load testing scripts
+│   ├── k6-smoke.js                       # Smoke test (1 VU sanity check)
+│   ├── k6-load-test.js                   # Load test (ramp to 100 VUs)
+│   ├── k6-stress.js                      # Stress test (ramp to 300 VUs)
+│   └── README.md                         # Load testing instructions
+│
+├── .github/
+│   └── workflows/
+│       └── ci.yml                        # CI/CD pipeline (lint, typecheck, test, build)
 │
 ├── Makefile                              # Developer commands
 ├── package.json                          # Dependencies & scripts (pnpm)
@@ -887,8 +924,8 @@ VENCURA/
 | Missing Component | Risk if Absent |
 |-------------------|----------------|
 | HSM-backed key storage (Thales, AWS CloudHSM, YubiHSM) | Software-encrypted keys can be extracted by anyone with DB + `ENCRYPTION_KEY` access |
-| MPC threshold signing (Fireblocks, Lit Protocol) | Single-key signing — no multi-party authorization for high-value transactions |
-| Key ceremony & rotation procedures | No formal process for key generation, backup, or rotation |
+| ~~MPC threshold signing (Fireblocks, Lit Protocol)~~ | ✅ **Implemented** — Shamir's Secret Sharing (2-of-3) with MPC signing endpoint |
+| ~~Key ceremony & rotation procedures~~ | ✅ **Implemented** — Batch key rotation via admin API, key generation helper |
 | TLS termination & certificate pinning | Cookie-based sessions require HTTPS — plaintext in development exposes tokens |
 | Production authentication (OAuth 2.0 / SSO) | Email/password only — no federated identity, no enterprise SSO |
 | ~~Distributed rate limiting (Redis-backed)~~ | ✅ **Implemented** — Redis-backed sliding window rate limiter with in-memory fallback |

@@ -1,0 +1,351 @@
+pnpm dev
+
+> vencura@0.1.0 dev /Users/pavondunbar/Vencura
+> next dev
+
+ ⚠ Warning: Next.js inferred your workspace root, but it may not be correct.
+ We detected multiple lockfiles and selected the directory of /Users/pavondunbar/package-lock.json as the root directory.
+ To silence this warning, set `outputFileTracingRoot` in your Next.js config, or consider removing one of the lockfiles if it's not needed.
+   See https://nextjs.org/docs/app/api-reference/config/next-config-js/output#caveats for more information.
+ Detected additional lockfiles: 
+   * /Users/pavondunbar/Vencura/pnpm-lock.yaml
+
+   ▲ Next.js 15.5.15
+   - Local:        http://localhost:3000
+   - Network:      http://192.168.105.1:3000
+   - Environments: .env
+
+ ✓ Starting...
+ ✓ Ready in 8.5s
+ ✓ Compiled /middleware in 133ms (180 modules)
+{"type":"request","timestamp":"2026-05-13T23:49:19.072Z","method":"GET","path":"/api/wallets/f1409e0a-90d7-42aa-b924-4d2da5cd74bb/balance","durationMs":4,"userId":"252bd548-c601-466c-bc94-40578612e056","ip":"::1","userAgent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36"}
+{"type":"request","timestamp":"2026-05-13T23:49:19.450Z","method":"GET","path":"/api/wallets/f1409e0a-90d7-42aa-b924-4d2da5cd74bb/transactions","durationMs":7,"userId":"252bd548-c601-466c-bc94-40578612e056","ip":"::1","userAgent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36"}
+ ○ Compiling /api/wallets/[id]/transactions ...
+ ✓ Compiled /api/wallets/[id]/transactions in 1451ms (2936 modules)
+bigint: Failed to load bindings, pure JS will be used (try npm run rebuild?)
+bigint: Failed to load bindings, pure JS will be used (try npm run rebuild?)
+ GET /api/wallets/f1409e0a-90d7-42aa-b924-4d2da5cd74bb/balance?token=0x94a9D9AC8a22534E3FaCa9F4e7F2E2cf85d5E4C8 200 in 2251ms
+ GET /api/wallets/f1409e0a-90d7-42aa-b924-4d2da5cd74bb/transactions 200 in 1869ms
+ GET /wallet/f1409e0a-90d7-42aa-b924-4d2da5cd74bb 200 in 2272ms
+{"type":"request","timestamp":"2026-05-13T23:49:22.073Z","method":"GET","path":"/api/wallets/f1409e0a-90d7-42aa-b924-4d2da5cd74bb/shares","durationMs":2,"userId":"252bd548-c601-466c-bc94-40578612e056","ip":"::1","userAgent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36"}
+{"type":"request","timestamp":"2026-05-13T23:49:22.073Z","method":"GET","path":"/api/wallets/f1409e0a-90d7-42aa-b924-4d2da5cd74bb/balance","durationMs":2,"userId":"252bd548-c601-466c-bc94-40578612e056","ip":"::1","userAgent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36"}
+{"type":"request","timestamp":"2026-05-13T23:49:22.073Z","method":"GET","path":"/api/wallets","durationMs":1,"userId":"252bd548-c601-466c-bc94-40578612e056","ip":"::1","userAgent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36"}
+{"type":"request","timestamp":"2026-05-13T23:49:22.074Z","method":"GET","path":"/api/wallets/f1409e0a-90d7-42aa-b924-4d2da5cd74bb/transactions","durationMs":2,"userId":"252bd548-c601-466c-bc94-40578612e056","ip":"::1","userAgent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36"}
+ ○ Compiling /api/wallets/[id]/shares ...
+ ✓ Compiled /api/wallets/[id]/shares in 1178ms (2943 modules)
+bigint: Failed to load bindings, pure JS will be used (try npm run rebuild?)
+ GET /api/wallets/f1409e0a-90d7-42aa-b924-4d2da5cd74bb/transactions 200 in 1380ms
+ GET /api/wallets 200 in 1384ms
+ GET / 307 in 1712ms
+ GET /api/wallets/f1409e0a-90d7-42aa-b924-4d2da5cd74bb/balance 200 in 1488ms
+ GET /api/wallets/f1409e0a-90d7-42aa-b924-4d2da5cd74bb/shares 200 in 1574ms
+bigint: Failed to load bindings, pure JS will be used (try npm run rebuild?)
+ ✓ Compiled /dashboard in 359ms (2951 modules)
+ GET /dashboard 200 in 530ms
+ GET / 307 in 66ms
+ GET /dashboard 200 in 43ms
+ GET /wallet/f5fb5267-5eb4-415f-9943-3fd21b28faff 200 in 53ms
+{"type":"request","timestamp":"2026-05-13T23:49:35.602Z","method":"GET","path":"/api/wallets/f5fb5267-5eb4-415f-9943-3fd21b28faff/shares","durationMs":1,"userId":"252bd548-c601-466c-bc94-40578612e056","ip":"::1","userAgent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36"}
+{"type":"request","timestamp":"2026-05-13T23:49:35.602Z","method":"GET","path":"/api/wallets/f5fb5267-5eb4-415f-9943-3fd21b28faff/balance","durationMs":1,"userId":"252bd548-c601-466c-bc94-40578612e056","ip":"::1","userAgent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36"}
+{"type":"request","timestamp":"2026-05-13T23:49:35.602Z","method":"GET","path":"/api/wallets","durationMs":1,"userId":"252bd548-c601-466c-bc94-40578612e056","ip":"::1","userAgent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36"}
+{"type":"request","timestamp":"2026-05-13T23:49:35.603Z","method":"GET","path":"/api/wallets/f5fb5267-5eb4-415f-9943-3fd21b28faff/transactions","durationMs":2,"userId":"252bd548-c601-466c-bc94-40578612e056","ip":"::1","userAgent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36"}
+bigint: Failed to load bindings, pure JS will be used (try npm run rebuild?)
+ GET /api/wallets 200 in 212ms
+ GET /api/wallets/f5fb5267-5eb4-415f-9943-3fd21b28faff/shares 200 in 212ms
+{"type":"request","timestamp":"2026-05-13T23:49:35.836Z","method":"GET","path":"/api/wallets","durationMs":1,"userId":"252bd548-c601-466c-bc94-40578612e056","ip":"::1","userAgent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36"}
+{"type":"request","timestamp":"2026-05-13T23:49:35.836Z","method":"GET","path":"/api/wallets/f5fb5267-5eb4-415f-9943-3fd21b28faff/shares","durationMs":1,"userId":"252bd548-c601-466c-bc94-40578612e056","ip":"::1","userAgent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36"}
+ GET /api/wallets 200 in 25ms
+ GET /api/wallets/f5fb5267-5eb4-415f-9943-3fd21b28faff/shares 200 in 29ms
+ GET /api/wallets/f5fb5267-5eb4-415f-9943-3fd21b28faff/transactions 200 in 422ms
+{"type":"request","timestamp":"2026-05-13T23:49:36.033Z","method":"GET","path":"/api/wallets/f5fb5267-5eb4-415f-9943-3fd21b28faff/transactions","durationMs":1,"userId":"252bd548-c601-466c-bc94-40578612e056","ip":"::1","userAgent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36"}
+ GET /api/wallets/f5fb5267-5eb4-415f-9943-3fd21b28faff/transactions 200 in 9ms
+ GET /api/wallets/f5fb5267-5eb4-415f-9943-3fd21b28faff/balance 200 in 459ms
+{"type":"request","timestamp":"2026-05-13T23:49:36.072Z","method":"GET","path":"/api/wallets/f5fb5267-5eb4-415f-9943-3fd21b28faff/balance","durationMs":1,"userId":"252bd548-c601-466c-bc94-40578612e056","ip":"::1","userAgent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36"}
+ GET /api/wallets/f5fb5267-5eb4-415f-9943-3fd21b28faff/balance 200 in 104ms
+bigint: Failed to load bindings, pure JS will be used (try npm run rebuild?)
+{"type":"request","timestamp":"2026-05-13T23:49:42.073Z","method":"GET","path":"/api/wallets/f5fb5267-5eb4-415f-9943-3fd21b28faff/balance","durationMs":1,"userId":"252bd548-c601-466c-bc94-40578612e056","ip":"::1","userAgent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36"}
+ GET /api/wallets/f5fb5267-5eb4-415f-9943-3fd21b28faff/balance?token=0x94a9D9AC8a22534E3FaCa9F4e7F2E2cf85d5E4C8 200 in 279ms
+bigint: Failed to load bindings, pure JS will be used (try npm run rebuild?)
+{"type":"request","timestamp":"2026-05-13T23:49:46.164Z","method":"GET","path":"/api/wallets/f5fb5267-5eb4-415f-9943-3fd21b28faff/balance","durationMs":0,"userId":"252bd548-c601-466c-bc94-40578612e056","ip":"::1","userAgent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36"}
+ GET /api/wallets/f5fb5267-5eb4-415f-9943-3fd21b28faff/balance?token=0x29f2D40B0605204364af54EC677bD022dA425d03 200 in 117ms
+bigint: Failed to load bindings, pure JS will be used (try npm run rebuild?)
+{"type":"request","timestamp":"2026-05-13T23:49:50.604Z","method":"GET","path":"/api/wallets/f5fb5267-5eb4-415f-9943-3fd21b28faff/transactions","durationMs":1,"userId":"252bd548-c601-466c-bc94-40578612e056","ip":"::1","userAgent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36"}
+ GET /api/wallets/f5fb5267-5eb4-415f-9943-3fd21b28faff/transactions 200 in 12ms
+ GET /wallet/f5fb5267-5eb4-415f-9943-3fd21b28faff 200 in 93ms
+{"type":"request","timestamp":"2026-05-13T23:49:59.541Z","method":"GET","path":"/api/wallets/f5fb5267-5eb4-415f-9943-3fd21b28faff/shares","durationMs":1,"userId":"252bd548-c601-466c-bc94-40578612e056","ip":"::1","userAgent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36"}
+{"type":"request","timestamp":"2026-05-13T23:49:59.541Z","method":"GET","path":"/api/wallets/f5fb5267-5eb4-415f-9943-3fd21b28faff/balance","durationMs":1,"userId":"252bd548-c601-466c-bc94-40578612e056","ip":"::1","userAgent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36"}
+{"type":"request","timestamp":"2026-05-13T23:49:59.542Z","method":"GET","path":"/api/wallets","durationMs":2,"userId":"252bd548-c601-466c-bc94-40578612e056","ip":"::1","userAgent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36"}
+{"type":"request","timestamp":"2026-05-13T23:49:59.542Z","method":"GET","path":"/api/wallets/f5fb5267-5eb4-415f-9943-3fd21b28faff/transactions","durationMs":1,"userId":"252bd548-c601-466c-bc94-40578612e056","ip":"::1","userAgent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36"}
+ GET /api/wallets/f5fb5267-5eb4-415f-9943-3fd21b28faff/shares 200 in 26ms
+ GET /api/wallets 200 in 35ms
+ GET /api/wallets/f5fb5267-5eb4-415f-9943-3fd21b28faff/transactions 200 in 37ms
+ GET /api/wallets/f5fb5267-5eb4-415f-9943-3fd21b28faff/balance 200 in 266ms
+bigint: Failed to load bindings, pure JS will be used (try npm run rebuild?)
+ GET /wallet/f5fb5267-5eb4-415f-9943-3fd21b28faff 200 in 77ms
+{"type":"request","timestamp":"2026-05-13T23:50:13.813Z","method":"GET","path":"/api/wallets/f5fb5267-5eb4-415f-9943-3fd21b28faff/shares","durationMs":1,"userId":"252bd548-c601-466c-bc94-40578612e056","ip":"::1","userAgent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36"}
+{"type":"request","timestamp":"2026-05-13T23:50:13.813Z","method":"GET","path":"/api/wallets/f5fb5267-5eb4-415f-9943-3fd21b28faff/balance","durationMs":1,"userId":"252bd548-c601-466c-bc94-40578612e056","ip":"::1","userAgent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36"}
+{"type":"request","timestamp":"2026-05-13T23:50:13.814Z","method":"GET","path":"/api/wallets","durationMs":2,"userId":"252bd548-c601-466c-bc94-40578612e056","ip":"::1","userAgent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36"}
+{"type":"request","timestamp":"2026-05-13T23:50:13.814Z","method":"GET","path":"/api/wallets/f5fb5267-5eb4-415f-9943-3fd21b28faff/transactions","durationMs":2,"userId":"252bd548-c601-466c-bc94-40578612e056","ip":"::1","userAgent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36"}
+ GET /api/wallets 200 in 24ms
+ GET /api/wallets/f5fb5267-5eb4-415f-9943-3fd21b28faff/shares 200 in 23ms
+ GET /api/wallets/f5fb5267-5eb4-415f-9943-3fd21b28faff/transactions 200 in 26ms
+ GET /api/wallets/f5fb5267-5eb4-415f-9943-3fd21b28faff/balance 200 in 285ms
+bigint: Failed to load bindings, pure JS will be used (try npm run rebuild?)
+ GET /wallet/f5fb5267-5eb4-415f-9943-3fd21b28faff 200 in 64ms
+{"type":"request","timestamp":"2026-05-13T23:50:15.315Z","method":"GET","path":"/api/wallets/f5fb5267-5eb4-415f-9943-3fd21b28faff/shares","durationMs":1,"userId":"252bd548-c601-466c-bc94-40578612e056","ip":"::1","userAgent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36"}
+{"type":"request","timestamp":"2026-05-13T23:50:15.315Z","method":"GET","path":"/api/wallets/f5fb5267-5eb4-415f-9943-3fd21b28faff/balance","durationMs":1,"userId":"252bd548-c601-466c-bc94-40578612e056","ip":"::1","userAgent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36"}
+{"type":"request","timestamp":"2026-05-13T23:50:15.315Z","method":"GET","path":"/api/wallets","durationMs":1,"userId":"252bd548-c601-466c-bc94-40578612e056","ip":"::1","userAgent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36"}
+{"type":"request","timestamp":"2026-05-13T23:50:15.315Z","method":"GET","path":"/api/wallets/f5fb5267-5eb4-415f-9943-3fd21b28faff/transactions","durationMs":1,"userId":"252bd548-c601-466c-bc94-40578612e056","ip":"::1","userAgent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36"}
+ GET /api/wallets 200 in 23ms
+ GET /api/wallets/f5fb5267-5eb4-415f-9943-3fd21b28faff/shares 200 in 22ms
+ GET /api/wallets/f5fb5267-5eb4-415f-9943-3fd21b28faff/transactions 200 in 25ms
+ GET /api/wallets/f5fb5267-5eb4-415f-9943-3fd21b28faff/balance 200 in 114ms
+bigint: Failed to load bindings, pure JS will be used (try npm run rebuild?)
+ GET / 307 in 55ms
+ GET /dashboard 200 in 51ms
+ GET /wallet/f5fb5267-5eb4-415f-9943-3fd21b28faff 200 in 36ms
+{"type":"request","timestamp":"2026-05-13T23:51:33.660Z","method":"GET","path":"/api/wallets/f5fb5267-5eb4-415f-9943-3fd21b28faff/shares","durationMs":1,"userId":"252bd548-c601-466c-bc94-40578612e056","ip":"::1","userAgent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36"}
+{"type":"request","timestamp":"2026-05-13T23:51:33.660Z","method":"GET","path":"/api/wallets/f5fb5267-5eb4-415f-9943-3fd21b28faff/balance","durationMs":1,"userId":"252bd548-c601-466c-bc94-40578612e056","ip":"::1","userAgent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36"}
+{"type":"request","timestamp":"2026-05-13T23:51:33.661Z","method":"GET","path":"/api/wallets","durationMs":2,"userId":"252bd548-c601-466c-bc94-40578612e056","ip":"::1","userAgent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36"}
+{"type":"request","timestamp":"2026-05-13T23:51:33.661Z","method":"GET","path":"/api/wallets/f5fb5267-5eb4-415f-9943-3fd21b28faff/transactions","durationMs":2,"userId":"252bd548-c601-466c-bc94-40578612e056","ip":"::1","userAgent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36"}
+ GET /api/wallets 200 in 23ms
+ GET /api/wallets/f5fb5267-5eb4-415f-9943-3fd21b28faff/shares 200 in 25ms
+{"type":"request","timestamp":"2026-05-13T23:51:33.696Z","method":"GET","path":"/api/wallets","durationMs":0,"userId":"252bd548-c601-466c-bc94-40578612e056","ip":"::1","userAgent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36"}
+{"type":"request","timestamp":"2026-05-13T23:51:33.697Z","method":"GET","path":"/api/wallets/f5fb5267-5eb4-415f-9943-3fd21b28faff/shares","durationMs":1,"userId":"252bd548-c601-466c-bc94-40578612e056","ip":"::1","userAgent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36"}
+ GET /api/wallets/f5fb5267-5eb4-415f-9943-3fd21b28faff/transactions 200 in 34ms
+{"type":"request","timestamp":"2026-05-13T23:51:33.714Z","method":"GET","path":"/api/wallets/f5fb5267-5eb4-415f-9943-3fd21b28faff/transactions","durationMs":1,"userId":"252bd548-c601-466c-bc94-40578612e056","ip":"::1","userAgent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36"}
+ GET /api/wallets 200 in 20ms
+ GET /api/wallets/f5fb5267-5eb4-415f-9943-3fd21b28faff/shares 200 in 21ms
+ GET /api/wallets/f5fb5267-5eb4-415f-9943-3fd21b28faff/transactions 200 in 14ms
+ GET /api/wallets/f5fb5267-5eb4-415f-9943-3fd21b28faff/balance 200 in 298ms
+{"type":"request","timestamp":"2026-05-13T23:51:33.967Z","method":"GET","path":"/api/wallets/f5fb5267-5eb4-415f-9943-3fd21b28faff/balance","durationMs":0,"userId":"252bd548-c601-466c-bc94-40578612e056","ip":"::1","userAgent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36"}
+bigint: Failed to load bindings, pure JS will be used (try npm run rebuild?)
+ GET /api/wallets/f5fb5267-5eb4-415f-9943-3fd21b28faff/balance 200 in 103ms
+{"type":"request","timestamp":"2026-05-13T23:51:48.668Z","method":"GET","path":"/api/wallets/f5fb5267-5eb4-415f-9943-3fd21b28faff/balance","durationMs":3,"userId":"252bd548-c601-466c-bc94-40578612e056","ip":"::1","userAgent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36"}
+{"type":"request","timestamp":"2026-05-13T23:51:48.669Z","method":"GET","path":"/api/wallets/f5fb5267-5eb4-415f-9943-3fd21b28faff/transactions","durationMs":4,"userId":"252bd548-c601-466c-bc94-40578612e056","ip":"::1","userAgent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36"}
+ GET /api/wallets/f5fb5267-5eb4-415f-9943-3fd21b28faff/transactions 200 in 208ms
+ GET /api/wallets/f5fb5267-5eb4-415f-9943-3fd21b28faff/balance 200 in 271ms
+bigint: Failed to load bindings, pure JS will be used (try npm run rebuild?)
+{"type":"request","timestamp":"2026-05-13T23:52:03.675Z","method":"GET","path":"/api/wallets/f5fb5267-5eb4-415f-9943-3fd21b28faff/balance","durationMs":1,"userId":"252bd548-c601-466c-bc94-40578612e056","ip":"::1","userAgent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36"}
+{"type":"request","timestamp":"2026-05-13T23:52:03.676Z","method":"GET","path":"/api/wallets/f5fb5267-5eb4-415f-9943-3fd21b28faff/transactions","durationMs":2,"userId":"252bd548-c601-466c-bc94-40578612e056","ip":"::1","userAgent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36"}
+ GET /api/wallets/f5fb5267-5eb4-415f-9943-3fd21b28faff/transactions 200 in 30ms
+ GET /api/wallets/f5fb5267-5eb4-415f-9943-3fd21b28faff/balance 200 in 275ms
+bigint: Failed to load bindings, pure JS will be used (try npm run rebuild?)
+{"type":"request","timestamp":"2026-05-13T23:52:19.088Z","method":"GET","path":"/api/wallets/f5fb5267-5eb4-415f-9943-3fd21b28faff/balance","durationMs":2,"userId":"252bd548-c601-466c-bc94-40578612e056","ip":"::1","userAgent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36"}
+{"type":"request","timestamp":"2026-05-13T23:52:19.089Z","method":"GET","path":"/api/wallets/f5fb5267-5eb4-415f-9943-3fd21b28faff/transactions","durationMs":2,"userId":"252bd548-c601-466c-bc94-40578612e056","ip":"::1","userAgent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36"}
+ GET /api/wallets/f5fb5267-5eb4-415f-9943-3fd21b28faff/transactions 200 in 33ms
+ GET /api/wallets/f5fb5267-5eb4-415f-9943-3fd21b28faff/balance 200 in 276ms
+bigint: Failed to load bindings, pure JS will be used (try npm run rebuild?)
+{"type":"request","timestamp":"2026-05-13T23:52:33.678Z","method":"GET","path":"/api/wallets/f5fb5267-5eb4-415f-9943-3fd21b28faff/balance","durationMs":2,"userId":"252bd548-c601-466c-bc94-40578612e056","ip":"::1","userAgent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36"}
+{"type":"request","timestamp":"2026-05-13T23:52:33.680Z","method":"GET","path":"/api/wallets/f5fb5267-5eb4-415f-9943-3fd21b28faff/transactions","durationMs":4,"userId":"252bd548-c601-466c-bc94-40578612e056","ip":"::1","userAgent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36"}
+ GET /api/wallets/f5fb5267-5eb4-415f-9943-3fd21b28faff/transactions 200 in 28ms
+ GET /api/wallets/f5fb5267-5eb4-415f-9943-3fd21b28faff/balance 200 in 265ms
+bigint: Failed to load bindings, pure JS will be used (try npm run rebuild?)
+(node:70510) ExperimentalWarning: Type Stripping is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+{"type":"request","timestamp":"2026-05-13T23:52:38.437Z","method":"GET","path":"/api/wallets/f5fb5267-5eb4-415f-9943-3fd21b28faff/balance","durationMs":1,"userId":"252bd548-c601-466c-bc94-40578612e056","ip":"::1","userAgent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36"}
+{"type":"request","timestamp":"2026-05-13T23:52:38.437Z","method":"GET","path":"/api/wallets/f5fb5267-5eb4-415f-9943-3fd21b28faff/transactions","durationMs":1,"userId":"252bd548-c601-466c-bc94-40578612e056","ip":"::1","userAgent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36"}
+ ✓ Compiled in 807ms (2958 modules)
+ ✓ Compiled in 0ms (2712 modules)
+ ✓ Compiled in 0ms (2712 modules)
+ ✓ Compiled in 0ms (2712 modules)
+bigint: Failed to load bindings, pure JS will be used (try npm run rebuild?)
+ GET /api/wallets/f5fb5267-5eb4-415f-9943-3fd21b28faff/transactions 200 in 1024ms
+ GET /api/wallets/f5fb5267-5eb4-415f-9943-3fd21b28faff/balance 200 in 1376ms
+bigint: Failed to load bindings, pure JS will be used (try npm run rebuild?)
+ GET /wallet/f5fb5267-5eb4-415f-9943-3fd21b28faff 200 in 1107ms
+ ✓ Compiled in 450ms (2958 modules)
+{"type":"request","timestamp":"2026-05-13T23:52:42.576Z","method":"GET","path":"/api/wallets/f5fb5267-5eb4-415f-9943-3fd21b28faff/transactions","durationMs":1,"userId":"252bd548-c601-466c-bc94-40578612e056","ip":"::1","userAgent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36"}
+{"type":"request","timestamp":"2026-05-13T23:52:42.576Z","method":"GET","path":"/api/wallets/f5fb5267-5eb4-415f-9943-3fd21b28faff/balance","durationMs":1,"userId":"252bd548-c601-466c-bc94-40578612e056","ip":"::1","userAgent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36"}
+ GET /wallet/f5fb5267-5eb4-415f-9943-3fd21b28faff 200 in 101ms
+bigint: Failed to load bindings, pure JS will be used (try npm run rebuild?)
+ GET /api/wallets/f5fb5267-5eb4-415f-9943-3fd21b28faff/transactions 200 in 191ms
+ GET /api/wallets/f5fb5267-5eb4-415f-9943-3fd21b28faff/balance 200 in 304ms
+bigint: Failed to load bindings, pure JS will be used (try npm run rebuild?)
+{"type":"request","timestamp":"2026-05-13T23:52:57.503Z","method":"GET","path":"/api/wallets/f5fb5267-5eb4-415f-9943-3fd21b28faff/balance","durationMs":2,"userId":"252bd548-c601-466c-bc94-40578612e056","ip":"::1","userAgent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36"}
+{"type":"request","timestamp":"2026-05-13T23:52:57.503Z","method":"GET","path":"/api/wallets/f5fb5267-5eb4-415f-9943-3fd21b28faff/transactions","durationMs":2,"userId":"252bd548-c601-466c-bc94-40578612e056","ip":"::1","userAgent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36"}
+ GET /api/wallets/f5fb5267-5eb4-415f-9943-3fd21b28faff/transactions 200 in 27ms
+ GET /api/wallets/f5fb5267-5eb4-415f-9943-3fd21b28faff/balance 200 in 283ms
+bigint: Failed to load bindings, pure JS will be used (try npm run rebuild?)
+{"type":"request","timestamp":"2026-05-13T23:53:12.509Z","method":"GET","path":"/api/wallets/f5fb5267-5eb4-415f-9943-3fd21b28faff/balance","durationMs":1,"userId":"252bd548-c601-466c-bc94-40578612e056","ip":"::1","userAgent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36"}
+{"type":"request","timestamp":"2026-05-13T23:53:12.510Z","method":"GET","path":"/api/wallets/f5fb5267-5eb4-415f-9943-3fd21b28faff/transactions","durationMs":2,"userId":"252bd548-c601-466c-bc94-40578612e056","ip":"::1","userAgent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36"}
+ GET /api/wallets/f5fb5267-5eb4-415f-9943-3fd21b28faff/transactions 200 in 29ms
+ GET /api/wallets/f5fb5267-5eb4-415f-9943-3fd21b28faff/balance 200 in 275ms
+bigint: Failed to load bindings, pure JS will be used (try npm run rebuild?)
+{"type":"request","timestamp":"2026-05-13T23:53:27.494Z","method":"GET","path":"/api/wallets/f5fb5267-5eb4-415f-9943-3fd21b28faff/balance","durationMs":1,"userId":"252bd548-c601-466c-bc94-40578612e056","ip":"::1","userAgent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36"}
+{"type":"request","timestamp":"2026-05-13T23:53:27.494Z","method":"GET","path":"/api/wallets/f5fb5267-5eb4-415f-9943-3fd21b28faff/transactions","durationMs":1,"userId":"252bd548-c601-466c-bc94-40578612e056","ip":"::1","userAgent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36"}
+ GET /api/wallets/f5fb5267-5eb4-415f-9943-3fd21b28faff/transactions 200 in 23ms
+ GET /api/wallets/f5fb5267-5eb4-415f-9943-3fd21b28faff/balance 200 in 257ms
+bigint: Failed to load bindings, pure JS will be used (try npm run rebuild?)
+{"type":"request","timestamp":"2026-05-13T23:53:42.555Z","method":"GET","path":"/api/wallets/f5fb5267-5eb4-415f-9943-3fd21b28faff/balance","durationMs":1,"userId":"252bd548-c601-466c-bc94-40578612e056","ip":"::1","userAgent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36"}
+{"type":"request","timestamp":"2026-05-13T23:53:42.555Z","method":"GET","path":"/api/wallets/f5fb5267-5eb4-415f-9943-3fd21b28faff/transactions","durationMs":1,"userId":"252bd548-c601-466c-bc94-40578612e056","ip":"::1","userAgent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36"}
+ GET /api/wallets/f5fb5267-5eb4-415f-9943-3fd21b28faff/transactions 200 in 38ms
+ GET /api/wallets/f5fb5267-5eb4-415f-9943-3fd21b28faff/balance 200 in 279ms
+bigint: Failed to load bindings, pure JS will be used (try npm run rebuild?)
+{"type":"request","timestamp":"2026-05-13T23:53:57.504Z","method":"GET","path":"/api/wallets/f5fb5267-5eb4-415f-9943-3fd21b28faff/balance","durationMs":2,"userId":"252bd548-c601-466c-bc94-40578612e056","ip":"::1","userAgent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36"}
+{"type":"request","timestamp":"2026-05-13T23:53:57.505Z","method":"GET","path":"/api/wallets/f5fb5267-5eb4-415f-9943-3fd21b28faff/transactions","durationMs":2,"userId":"252bd548-c601-466c-bc94-40578612e056","ip":"::1","userAgent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36"}
+ GET /api/wallets/f5fb5267-5eb4-415f-9943-3fd21b28faff/transactions 200 in 209ms
+ GET /api/wallets/f5fb5267-5eb4-415f-9943-3fd21b28faff/balance 200 in 265ms
+bigint: Failed to load bindings, pure JS will be used (try npm run rebuild?)
+{"type":"request","timestamp":"2026-05-13T23:54:12.502Z","method":"GET","path":"/api/wallets/f5fb5267-5eb4-415f-9943-3fd21b28faff/balance","durationMs":3,"userId":"252bd548-c601-466c-bc94-40578612e056","ip":"::1","userAgent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36"}
+{"type":"request","timestamp":"2026-05-13T23:54:12.503Z","method":"GET","path":"/api/wallets/f5fb5267-5eb4-415f-9943-3fd21b28faff/transactions","durationMs":4,"userId":"252bd548-c601-466c-bc94-40578612e056","ip":"::1","userAgent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36"}
+ GET /api/wallets/f5fb5267-5eb4-415f-9943-3fd21b28faff/transactions 200 in 31ms
+ GET /api/wallets/f5fb5267-5eb4-415f-9943-3fd21b28faff/balance 200 in 331ms
+bigint: Failed to load bindings, pure JS will be used (try npm run rebuild?)
+{"type":"request","timestamp":"2026-05-13T23:54:27.502Z","method":"GET","path":"/api/wallets/f5fb5267-5eb4-415f-9943-3fd21b28faff/balance","durationMs":1,"userId":"252bd548-c601-466c-bc94-40578612e056","ip":"::1","userAgent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36"}
+{"type":"request","timestamp":"2026-05-13T23:54:27.503Z","method":"GET","path":"/api/wallets/f5fb5267-5eb4-415f-9943-3fd21b28faff/transactions","durationMs":2,"userId":"252bd548-c601-466c-bc94-40578612e056","ip":"::1","userAgent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36"}
+ GET /api/wallets/f5fb5267-5eb4-415f-9943-3fd21b28faff/transactions 200 in 31ms
+ GET /api/wallets/f5fb5267-5eb4-415f-9943-3fd21b28faff/balance 200 in 307ms
+bigint: Failed to load bindings, pure JS will be used (try npm run rebuild?)
+{"type":"request","timestamp":"2026-05-13T23:54:42.494Z","method":"GET","path":"/api/wallets/f5fb5267-5eb4-415f-9943-3fd21b28faff/balance","durationMs":3,"userId":"252bd548-c601-466c-bc94-40578612e056","ip":"::1","userAgent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36"}
+{"type":"request","timestamp":"2026-05-13T23:54:42.494Z","method":"GET","path":"/api/wallets/f5fb5267-5eb4-415f-9943-3fd21b28faff/transactions","durationMs":2,"userId":"252bd548-c601-466c-bc94-40578612e056","ip":"::1","userAgent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36"}
+ GET /api/wallets/f5fb5267-5eb4-415f-9943-3fd21b28faff/transactions 200 in 27ms
+ GET /api/wallets/f5fb5267-5eb4-415f-9943-3fd21b28faff/balance 200 in 281ms
+bigint: Failed to load bindings, pure JS will be used (try npm run rebuild?)
+{"type":"request","timestamp":"2026-05-13T23:54:57.502Z","method":"GET","path":"/api/wallets/f5fb5267-5eb4-415f-9943-3fd21b28faff/balance","durationMs":1,"userId":"252bd548-c601-466c-bc94-40578612e056","ip":"::1","userAgent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36"}
+{"type":"request","timestamp":"2026-05-13T23:54:57.503Z","method":"GET","path":"/api/wallets/f5fb5267-5eb4-415f-9943-3fd21b28faff/transactions","durationMs":1,"userId":"252bd548-c601-466c-bc94-40578612e056","ip":"::1","userAgent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36"}
+ GET /api/wallets/f5fb5267-5eb4-415f-9943-3fd21b28faff/transactions 200 in 31ms
+ GET /api/wallets/f5fb5267-5eb4-415f-9943-3fd21b28faff/balance 200 in 270ms
+bigint: Failed to load bindings, pure JS will be used (try npm run rebuild?)
+{"type":"request","timestamp":"2026-05-13T23:55:12.500Z","method":"GET","path":"/api/wallets/f5fb5267-5eb4-415f-9943-3fd21b28faff/balance","durationMs":2,"userId":"252bd548-c601-466c-bc94-40578612e056","ip":"::1","userAgent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36"}
+{"type":"request","timestamp":"2026-05-13T23:55:12.502Z","method":"GET","path":"/api/wallets/f5fb5267-5eb4-415f-9943-3fd21b28faff/transactions","durationMs":4,"userId":"252bd548-c601-466c-bc94-40578612e056","ip":"::1","userAgent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36"}
+ GET /api/wallets/f5fb5267-5eb4-415f-9943-3fd21b28faff/transactions 200 in 31ms
+ GET /api/wallets/f5fb5267-5eb4-415f-9943-3fd21b28faff/balance 200 in 297ms
+bigint: Failed to load bindings, pure JS will be used (try npm run rebuild?)
+{"type":"request","timestamp":"2026-05-13T23:55:27.504Z","method":"GET","path":"/api/wallets/f5fb5267-5eb4-415f-9943-3fd21b28faff/balance","durationMs":2,"userId":"252bd548-c601-466c-bc94-40578612e056","ip":"::1","userAgent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36"}
+{"type":"request","timestamp":"2026-05-13T23:55:27.505Z","method":"GET","path":"/api/wallets/f5fb5267-5eb4-415f-9943-3fd21b28faff/transactions","durationMs":2,"userId":"252bd548-c601-466c-bc94-40578612e056","ip":"::1","userAgent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36"}
+ GET /api/wallets/f5fb5267-5eb4-415f-9943-3fd21b28faff/transactions 200 in 29ms
+ GET /api/wallets/f5fb5267-5eb4-415f-9943-3fd21b28faff/balance 200 in 283ms
+bigint: Failed to load bindings, pure JS will be used (try npm run rebuild?)
+{"type":"request","timestamp":"2026-05-13T23:55:42.503Z","method":"GET","path":"/api/wallets/f5fb5267-5eb4-415f-9943-3fd21b28faff/balance","durationMs":4,"userId":"252bd548-c601-466c-bc94-40578612e056","ip":"::1","userAgent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36"}
+{"type":"request","timestamp":"2026-05-13T23:55:42.504Z","method":"GET","path":"/api/wallets/f5fb5267-5eb4-415f-9943-3fd21b28faff/transactions","durationMs":4,"userId":"252bd548-c601-466c-bc94-40578612e056","ip":"::1","userAgent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36"}
+ GET /api/wallets/f5fb5267-5eb4-415f-9943-3fd21b28faff/transactions 200 in 29ms
+ GET /api/wallets/f5fb5267-5eb4-415f-9943-3fd21b28faff/balance 200 in 271ms
+bigint: Failed to load bindings, pure JS will be used (try npm run rebuild?)
+{"type":"request","timestamp":"2026-05-13T23:55:57.494Z","method":"GET","path":"/api/wallets/f5fb5267-5eb4-415f-9943-3fd21b28faff/balance","durationMs":1,"userId":"252bd548-c601-466c-bc94-40578612e056","ip":"::1","userAgent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36"}
+{"type":"request","timestamp":"2026-05-13T23:55:57.495Z","method":"GET","path":"/api/wallets/f5fb5267-5eb4-415f-9943-3fd21b28faff/transactions","durationMs":2,"userId":"252bd548-c601-466c-bc94-40578612e056","ip":"::1","userAgent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36"}
+ GET /api/wallets/f5fb5267-5eb4-415f-9943-3fd21b28faff/transactions 200 in 24ms
+ GET /api/wallets/f5fb5267-5eb4-415f-9943-3fd21b28faff/balance 200 in 325ms
+bigint: Failed to load bindings, pure JS will be used (try npm run rebuild?)
+{"type":"request","timestamp":"2026-05-13T23:56:12.501Z","method":"GET","path":"/api/wallets/f5fb5267-5eb4-415f-9943-3fd21b28faff/balance","durationMs":3,"userId":"252bd548-c601-466c-bc94-40578612e056","ip":"::1","userAgent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36"}
+{"type":"request","timestamp":"2026-05-13T23:56:12.502Z","method":"GET","path":"/api/wallets/f5fb5267-5eb4-415f-9943-3fd21b28faff/transactions","durationMs":3,"userId":"252bd548-c601-466c-bc94-40578612e056","ip":"::1","userAgent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36"}
+ GET /api/wallets/f5fb5267-5eb4-415f-9943-3fd21b28faff/transactions 200 in 247ms
+ GET /api/wallets/f5fb5267-5eb4-415f-9943-3fd21b28faff/balance 200 in 295ms
+bigint: Failed to load bindings, pure JS will be used (try npm run rebuild?)
+{"type":"request","timestamp":"2026-05-13T23:56:27.498Z","method":"GET","path":"/api/wallets/f5fb5267-5eb4-415f-9943-3fd21b28faff/balance","durationMs":2,"userId":"252bd548-c601-466c-bc94-40578612e056","ip":"::1","userAgent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36"}
+{"type":"request","timestamp":"2026-05-13T23:56:27.499Z","method":"GET","path":"/api/wallets/f5fb5267-5eb4-415f-9943-3fd21b28faff/transactions","durationMs":2,"userId":"252bd548-c601-466c-bc94-40578612e056","ip":"::1","userAgent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36"}
+ GET /api/wallets/f5fb5267-5eb4-415f-9943-3fd21b28faff/transactions 200 in 28ms
+ GET /api/wallets/f5fb5267-5eb4-415f-9943-3fd21b28faff/balance 200 in 267ms
+bigint: Failed to load bindings, pure JS will be used (try npm run rebuild?)
+{"type":"request","timestamp":"2026-05-13T23:56:42.500Z","method":"GET","path":"/api/wallets/f5fb5267-5eb4-415f-9943-3fd21b28faff/balance","durationMs":1,"userId":"252bd548-c601-466c-bc94-40578612e056","ip":"::1","userAgent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36"}
+{"type":"request","timestamp":"2026-05-13T23:56:42.501Z","method":"GET","path":"/api/wallets/f5fb5267-5eb4-415f-9943-3fd21b28faff/transactions","durationMs":1,"userId":"252bd548-c601-466c-bc94-40578612e056","ip":"::1","userAgent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36"}
+ GET /api/wallets/f5fb5267-5eb4-415f-9943-3fd21b28faff/transactions 200 in 25ms
+ GET /api/wallets/f5fb5267-5eb4-415f-9943-3fd21b28faff/balance 200 in 274ms
+bigint: Failed to load bindings, pure JS will be used (try npm run rebuild?)
+ ✓ Compiled in 94ms (246 modules)
+ GET /wallet/f5fb5267-5eb4-415f-9943-3fd21b28faff 200 in 33ms
+ ✓ Compiled in 68ms (246 modules)
+ GET /wallet/f5fb5267-5eb4-415f-9943-3fd21b28faff 200 in 19ms
+ ✓ Compiled in 446ms (3124 modules)
+ GET /wallet/f5fb5267-5eb4-415f-9943-3fd21b28faff 200 in 547ms
+ GET /wallet/f5fb5267-5eb4-415f-9943-3fd21b28faff 200 in 16ms
+{"type":"request","timestamp":"2026-05-13T23:56:57.492Z","method":"GET","path":"/api/wallets/f5fb5267-5eb4-415f-9943-3fd21b28faff/balance","durationMs":1,"userId":"252bd548-c601-466c-bc94-40578612e056","ip":"::1","userAgent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36"}
+{"type":"request","timestamp":"2026-05-13T23:56:57.492Z","method":"GET","path":"/api/wallets/f5fb5267-5eb4-415f-9943-3fd21b28faff/transactions","durationMs":1,"userId":"252bd548-c601-466c-bc94-40578612e056","ip":"::1","userAgent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36"}
+bigint: Failed to load bindings, pure JS will be used (try npm run rebuild?)
+ GET /api/wallets/f5fb5267-5eb4-415f-9943-3fd21b28faff/transactions 200 in 279ms
+bigint: Failed to load bindings, pure JS will be used (try npm run rebuild?)
+ GET /api/wallets/f5fb5267-5eb4-415f-9943-3fd21b28faff/balance 200 in 524ms
+{"type":"request","timestamp":"2026-05-13T23:57:12.492Z","method":"GET","path":"/api/wallets/f5fb5267-5eb4-415f-9943-3fd21b28faff/balance","durationMs":0,"userId":"252bd548-c601-466c-bc94-40578612e056","ip":"::1","userAgent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36"}
+{"type":"request","timestamp":"2026-05-13T23:57:12.493Z","method":"GET","path":"/api/wallets/f5fb5267-5eb4-415f-9943-3fd21b28faff/transactions","durationMs":1,"userId":"252bd548-c601-466c-bc94-40578612e056","ip":"::1","userAgent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36"}
+ GET /api/wallets/f5fb5267-5eb4-415f-9943-3fd21b28faff/transactions 200 in 26ms
+ GET /api/wallets/f5fb5267-5eb4-415f-9943-3fd21b28faff/balance 200 in 277ms
+bigint: Failed to load bindings, pure JS will be used (try npm run rebuild?)
+ ✓ Compiled in 61ms (246 modules)
+ GET /wallet/f5fb5267-5eb4-415f-9943-3fd21b28faff 200 in 21ms
+{"type":"request","timestamp":"2026-05-13T23:57:27.495Z","method":"GET","path":"/api/wallets/f5fb5267-5eb4-415f-9943-3fd21b28faff/balance","durationMs":1,"userId":"252bd548-c601-466c-bc94-40578612e056","ip":"::1","userAgent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36"}
+{"type":"request","timestamp":"2026-05-13T23:57:27.496Z","method":"GET","path":"/api/wallets/f5fb5267-5eb4-415f-9943-3fd21b28faff/transactions","durationMs":1,"userId":"252bd548-c601-466c-bc94-40578612e056","ip":"::1","userAgent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36"}
+ GET /api/wallets/f5fb5267-5eb4-415f-9943-3fd21b28faff/transactions 200 in 21ms
+ GET /api/wallets/f5fb5267-5eb4-415f-9943-3fd21b28faff/balance 200 in 271ms
+bigint: Failed to load bindings, pure JS will be used (try npm run rebuild?)
+ ✓ Compiled in 60ms (246 modules)
+ GET /wallet/f5fb5267-5eb4-415f-9943-3fd21b28faff 200 in 22ms
+ GET /wallet/f5fb5267-5eb4-415f-9943-3fd21b28faff 200 in 17ms
+{"type":"request","timestamp":"2026-05-13T23:57:42.497Z","method":"GET","path":"/api/wallets/f5fb5267-5eb4-415f-9943-3fd21b28faff/balance","durationMs":1,"userId":"252bd548-c601-466c-bc94-40578612e056","ip":"::1","userAgent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36"}
+{"type":"request","timestamp":"2026-05-13T23:57:42.498Z","method":"GET","path":"/api/wallets/f5fb5267-5eb4-415f-9943-3fd21b28faff/transactions","durationMs":2,"userId":"252bd548-c601-466c-bc94-40578612e056","ip":"::1","userAgent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36"}
+ GET /api/wallets/f5fb5267-5eb4-415f-9943-3fd21b28faff/transactions 200 in 26ms
+ GET /api/wallets/f5fb5267-5eb4-415f-9943-3fd21b28faff/balance 200 in 272ms
+bigint: Failed to load bindings, pure JS will be used (try npm run rebuild?)
+{"type":"request","timestamp":"2026-05-13T23:57:57.489Z","method":"GET","path":"/api/wallets/f5fb5267-5eb4-415f-9943-3fd21b28faff/balance","durationMs":0,"userId":"252bd548-c601-466c-bc94-40578612e056","ip":"::1","userAgent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36"}
+{"type":"request","timestamp":"2026-05-13T23:57:57.490Z","method":"GET","path":"/api/wallets/f5fb5267-5eb4-415f-9943-3fd21b28faff/transactions","durationMs":1,"userId":"252bd548-c601-466c-bc94-40578612e056","ip":"::1","userAgent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36"}
+ GET /api/wallets/f5fb5267-5eb4-415f-9943-3fd21b28faff/transactions 200 in 27ms
+ GET /api/wallets/f5fb5267-5eb4-415f-9943-3fd21b28faff/balance 200 in 272ms
+bigint: Failed to load bindings, pure JS will be used (try npm run rebuild?)
+{"type":"request","timestamp":"2026-05-13T23:58:12.499Z","method":"GET","path":"/api/wallets/f5fb5267-5eb4-415f-9943-3fd21b28faff/balance","durationMs":1,"userId":"252bd548-c601-466c-bc94-40578612e056","ip":"::1","userAgent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36"}
+{"type":"request","timestamp":"2026-05-13T23:58:12.499Z","method":"GET","path":"/api/wallets/f5fb5267-5eb4-415f-9943-3fd21b28faff/transactions","durationMs":0,"userId":"252bd548-c601-466c-bc94-40578612e056","ip":"::1","userAgent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36"}
+ GET /api/wallets/f5fb5267-5eb4-415f-9943-3fd21b28faff/transactions 200 in 21ms
+ GET /api/wallets/f5fb5267-5eb4-415f-9943-3fd21b28faff/balance 200 in 272ms
+bigint: Failed to load bindings, pure JS will be used (try npm run rebuild?)
+{"type":"request","timestamp":"2026-05-13T23:58:27.491Z","method":"GET","path":"/api/wallets/f5fb5267-5eb4-415f-9943-3fd21b28faff/balance","durationMs":1,"userId":"252bd548-c601-466c-bc94-40578612e056","ip":"::1","userAgent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36"}
+{"type":"request","timestamp":"2026-05-13T23:58:27.491Z","method":"GET","path":"/api/wallets/f5fb5267-5eb4-415f-9943-3fd21b28faff/transactions","durationMs":1,"userId":"252bd548-c601-466c-bc94-40578612e056","ip":"::1","userAgent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36"}
+ GET /api/wallets/f5fb5267-5eb4-415f-9943-3fd21b28faff/transactions 200 in 238ms
+ GET /api/wallets/f5fb5267-5eb4-415f-9943-3fd21b28faff/balance 200 in 274ms
+bigint: Failed to load bindings, pure JS will be used (try npm run rebuild?)
+{"type":"request","timestamp":"2026-05-13T23:58:42.493Z","method":"GET","path":"/api/wallets/f5fb5267-5eb4-415f-9943-3fd21b28faff/balance","durationMs":1,"userId":"252bd548-c601-466c-bc94-40578612e056","ip":"::1","userAgent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36"}
+{"type":"request","timestamp":"2026-05-13T23:58:42.493Z","method":"GET","path":"/api/wallets/f5fb5267-5eb4-415f-9943-3fd21b28faff/transactions","durationMs":1,"userId":"252bd548-c601-466c-bc94-40578612e056","ip":"::1","userAgent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36"}
+ GET /api/wallets/f5fb5267-5eb4-415f-9943-3fd21b28faff/transactions 200 in 27ms
+ GET /api/wallets/f5fb5267-5eb4-415f-9943-3fd21b28faff/balance 200 in 278ms
+bigint: Failed to load bindings, pure JS will be used (try npm run rebuild?)
+{"type":"request","timestamp":"2026-05-13T23:58:57.491Z","method":"GET","path":"/api/wallets/f5fb5267-5eb4-415f-9943-3fd21b28faff/balance","durationMs":0,"userId":"252bd548-c601-466c-bc94-40578612e056","ip":"::1","userAgent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36"}
+{"type":"request","timestamp":"2026-05-13T23:58:57.492Z","method":"GET","path":"/api/wallets/f5fb5267-5eb4-415f-9943-3fd21b28faff/transactions","durationMs":1,"userId":"252bd548-c601-466c-bc94-40578612e056","ip":"::1","userAgent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36"}
+ GET /api/wallets/f5fb5267-5eb4-415f-9943-3fd21b28faff/transactions 200 in 23ms
+ GET /api/wallets/f5fb5267-5eb4-415f-9943-3fd21b28faff/balance 200 in 274ms
+bigint: Failed to load bindings, pure JS will be used (try npm run rebuild?)
+{"type":"request","timestamp":"2026-05-13T23:59:12.491Z","method":"GET","path":"/api/wallets/f5fb5267-5eb4-415f-9943-3fd21b28faff/balance","durationMs":1,"userId":"252bd548-c601-466c-bc94-40578612e056","ip":"::1","userAgent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36"}
+{"type":"request","timestamp":"2026-05-13T23:59:12.491Z","method":"GET","path":"/api/wallets/f5fb5267-5eb4-415f-9943-3fd21b28faff/transactions","durationMs":1,"userId":"252bd548-c601-466c-bc94-40578612e056","ip":"::1","userAgent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36"}
+ GET /api/wallets/f5fb5267-5eb4-415f-9943-3fd21b28faff/transactions 200 in 23ms
+ GET /api/wallets/f5fb5267-5eb4-415f-9943-3fd21b28faff/balance 200 in 267ms
+bigint: Failed to load bindings, pure JS will be used (try npm run rebuild?)
+{"type":"request","timestamp":"2026-05-13T23:59:27.500Z","method":"GET","path":"/api/wallets/f5fb5267-5eb4-415f-9943-3fd21b28faff/balance","durationMs":3,"userId":"252bd548-c601-466c-bc94-40578612e056","ip":"::1","userAgent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36"}
+{"type":"request","timestamp":"2026-05-13T23:59:27.502Z","method":"GET","path":"/api/wallets/f5fb5267-5eb4-415f-9943-3fd21b28faff/transactions","durationMs":4,"userId":"252bd548-c601-466c-bc94-40578612e056","ip":"::1","userAgent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36"}
+ GET /api/wallets/f5fb5267-5eb4-415f-9943-3fd21b28faff/transactions 200 in 30ms
+ GET /api/wallets/f5fb5267-5eb4-415f-9943-3fd21b28faff/balance 200 in 287ms
+bigint: Failed to load bindings, pure JS will be used (try npm run rebuild?)
+{"type":"request","timestamp":"2026-05-13T23:59:42.501Z","method":"GET","path":"/api/wallets/f5fb5267-5eb4-415f-9943-3fd21b28faff/balance","durationMs":2,"userId":"252bd548-c601-466c-bc94-40578612e056","ip":"::1","userAgent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36"}
+{"type":"request","timestamp":"2026-05-13T23:59:42.502Z","method":"GET","path":"/api/wallets/f5fb5267-5eb4-415f-9943-3fd21b28faff/transactions","durationMs":3,"userId":"252bd548-c601-466c-bc94-40578612e056","ip":"::1","userAgent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36"}
+ GET /api/wallets/f5fb5267-5eb4-415f-9943-3fd21b28faff/transactions 200 in 31ms
+ GET /api/wallets/f5fb5267-5eb4-415f-9943-3fd21b28faff/balance 200 in 282ms
+bigint: Failed to load bindings, pure JS will be used (try npm run rebuild?)
+{"type":"request","timestamp":"2026-05-13T23:59:57.496Z","method":"GET","path":"/api/wallets/f5fb5267-5eb4-415f-9943-3fd21b28faff/balance","durationMs":1,"userId":"252bd548-c601-466c-bc94-40578612e056","ip":"::1","userAgent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36"}
+{"type":"request","timestamp":"2026-05-13T23:59:57.496Z","method":"GET","path":"/api/wallets/f5fb5267-5eb4-415f-9943-3fd21b28faff/transactions","durationMs":1,"userId":"252bd548-c601-466c-bc94-40578612e056","ip":"::1","userAgent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36"}
+ GET /api/wallets/f5fb5267-5eb4-415f-9943-3fd21b28faff/transactions 200 in 29ms
+ GET /api/wallets/f5fb5267-5eb4-415f-9943-3fd21b28faff/balance 200 in 268ms
+bigint: Failed to load bindings, pure JS will be used (try npm run rebuild?)
+{"type":"request","timestamp":"2026-05-14T00:00:12.492Z","method":"GET","path":"/api/wallets/f5fb5267-5eb4-415f-9943-3fd21b28faff/balance","durationMs":1,"userId":"252bd548-c601-466c-bc94-40578612e056","ip":"::1","userAgent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36"}
+{"type":"request","timestamp":"2026-05-14T00:00:12.493Z","method":"GET","path":"/api/wallets/f5fb5267-5eb4-415f-9943-3fd21b28faff/transactions","durationMs":2,"userId":"252bd548-c601-466c-bc94-40578612e056","ip":"::1","userAgent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36"}
+ GET /api/wallets/f5fb5267-5eb4-415f-9943-3fd21b28faff/transactions 200 in 26ms
+ GET /api/wallets/f5fb5267-5eb4-415f-9943-3fd21b28faff/balance 200 in 260ms
+bigint: Failed to load bindings, pure JS will be used (try npm run rebuild?)
+{"type":"request","timestamp":"2026-05-14T00:00:27.490Z","method":"GET","path":"/api/wallets/f5fb5267-5eb4-415f-9943-3fd21b28faff/balance","durationMs":1,"userId":"252bd548-c601-466c-bc94-40578612e056","ip":"::1","userAgent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36"}
+{"type":"request","timestamp":"2026-05-14T00:00:27.490Z","method":"GET","path":"/api/wallets/f5fb5267-5eb4-415f-9943-3fd21b28faff/transactions","durationMs":1,"userId":"252bd548-c601-466c-bc94-40578612e056","ip":"::1","userAgent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36"}
+ GET /api/wallets/f5fb5267-5eb4-415f-9943-3fd21b28faff/transactions 200 in 24ms
+ GET /api/wallets/f5fb5267-5eb4-415f-9943-3fd21b28faff/balance 200 in 270ms
+bigint: Failed to load bindings, pure JS will be used (try npm run rebuild?)
+{"type":"request","timestamp":"2026-05-14T00:00:42.491Z","method":"GET","path":"/api/wallets/f5fb5267-5eb4-415f-9943-3fd21b28faff/balance","durationMs":1,"userId":"252bd548-c601-466c-bc94-40578612e056","ip":"::1","userAgent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36"}
+{"type":"request","timestamp":"2026-05-14T00:00:42.491Z","method":"GET","path":"/api/wallets/f5fb5267-5eb4-415f-9943-3fd21b28faff/transactions","durationMs":0,"userId":"252bd548-c601-466c-bc94-40578612e056","ip":"::1","userAgent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36"}
+ GET /api/wallets/f5fb5267-5eb4-415f-9943-3fd21b28faff/transactions 200 in 218ms
+ GET /api/wallets/f5fb5267-5eb4-415f-9943-3fd21b28faff/balance 200 in 258ms
+bigint: Failed to load bindings, pure JS will be used (try npm run rebuild?)
+ GET /wallet/f5fb5267-5eb4-415f-9943-3fd21b28faff 200 in 89ms
+{"type":"request","timestamp":"2026-05-14T00:00:50.863Z","method":"GET","path":"/api/wallets/f5fb5267-5eb4-415f-9943-3fd21b28faff/shares","durationMs":1,"userId":"252bd548-c601-466c-bc94-40578612e056","ip":"::1","userAgent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36"}
+{"type":"request","timestamp":"2026-05-14T00:00:50.863Z","method":"GET","path":"/api/wallets/f5fb5267-5eb4-415f-9943-3fd21b28faff/balance","durationMs":1,"userId":"252bd548-c601-466c-bc94-40578612e056","ip":"::1","userAgent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36"}
+{"type":"request","timestamp":"2026-05-14T00:00:50.863Z","method":"GET","path":"/api/wallets","durationMs":1,"userId":"252bd548-c601-466c-bc94-40578612e056","ip":"::1","userAgent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36"}
+{"type":"request","timestamp":"2026-05-14T00:00:50.863Z","method":"GET","path":"/api/wallets/f5fb5267-5eb4-415f-9943-3fd21b28faff/transactions","durationMs":1,"userId":"252bd548-c601-466c-bc94-40578612e056","ip":"::1","userAgent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36"}
+ ○ Compiling /api/wallets/[id]/shares ...
+ ✓ Compiled /api/wallets/[id]/shares in 532ms (2715 modules)
+ ✓ Compiled (2717 modules)
+bigint: Failed to load bindings, pure JS will be used (try npm run rebuild?)
+ GET /api/wallets/f5fb5267-5eb4-415f-9943-3fd21b28faff/transactions 200 in 1016ms
+ GET /api/wallets 200 in 1020ms
+ GET /api/wallets/f5fb5267-5eb4-415f-9943-3fd21b28faff/shares 200 in 1024ms
+ GET /api/wallets/f5fb5267-5eb4-415f-9943-3fd21b28faff/balance 200 in 1294ms
+bigint: Failed to load bindings, pure JS will be used (try npm run rebuild?)

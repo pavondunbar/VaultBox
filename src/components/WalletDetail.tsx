@@ -326,7 +326,7 @@ export function WalletDetail({
         <p className="mt-1 text-xs text-slate-500">
           Leave token empty for native {chain === "ethereum" ? "ETH" : chain === "bitcoin" ? "BTC" : "SOL"}.
         </p>
-        <div className="mt-4 flex flex-col gap-2 sm:flex-row">
+        <div className="mt-4 flex flex-col flex-wrap gap-2 sm:flex-row">
           {chain === "ethereum" && (
             <select
               value={SEPOLIA_ERC20_TOKENS.find((t) => t.address === tokenQuery)?.address ?? ""}
@@ -377,9 +377,10 @@ export function WalletDetail({
           <button
             type="button"
             onClick={() => void loadBalance()}
-            className="rounded-lg border border-white/15 px-4 py-2 text-xs text-slate-200 hover:bg-white/5"
+            disabled={loadingBal}
+            className="shrink-0 rounded-lg border border-mint-600/50 px-4 py-2 text-xs text-mint-400 hover:bg-mint-600/10 disabled:opacity-50"
           >
-            Refresh
+            {loadingBal ? "Loading…" : "Refresh"}
           </button>
         </div>
         {chain !== "bitcoin" && (

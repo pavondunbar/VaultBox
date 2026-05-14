@@ -314,3 +314,20 @@ nuke: clean ## Remove all generated files and reinstall
 
 open-docs: ## Open the README in the default browser
 	@open README.md 2>/dev/null || xdg-open README.md 2>/dev/null || echo "Open README.md manually."
+
+# ── Load Testing ─────────────────────────────
+
+load-smoke: ## Run k6 smoke test (1 VU, sanity check)
+	@k6 run load-tests/k6-smoke.js
+
+load-test: ## Run k6 load test (ramp to 100 VUs)
+	@k6 run load-tests/k6-load-test.js
+
+load-stress: ## Run k6 stress test (ramp to 300 VUs)
+	@k6 run load-tests/k6-stress.js
+
+# ── Key Rotation ─────────────────────────────
+
+rotate-key: ## Generate a new encryption key for rotation
+	@echo "New key: $$(openssl rand -hex 32)"
+	@echo "Use POST /api/admin/rotate-key with { oldKey, newKey } to rotate."
