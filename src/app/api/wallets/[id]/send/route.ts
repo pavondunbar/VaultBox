@@ -202,7 +202,7 @@ export async function POST(
         fromAddress: wallet.address,
         direction: "outgoing",
         amount,
-        status: "pending",
+        status: "confirmed",
         tokenSymbol,
         tokenAddress: tokenAddrOut,
       });
