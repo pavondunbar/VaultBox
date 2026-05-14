@@ -16,13 +16,14 @@ import {
   rateLimitResponse,
 } from "@/lib/security/rate-limit";
 import { logSecurityEvent } from "@/lib/security/logger";
+import { withMetrics } from "@/lib/monitoring/instrument";
 
 const bodySchema = z.object({
   email: z.string().email(),
   password: z.string(),
 });
 
-export async function POST(request: Request) {
+export const POST = withMetrics(async function POST(request: Request) {
   const ip = getClientIp(request);
   const rateResult = await check("login", ip);
   if (!rateResult.allowed) {
@@ -105,4 +106,4 @@ export async function POST(request: Request) {
       { status: 500 },
     );
   }
-}
+});

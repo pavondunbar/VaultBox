@@ -24,6 +24,10 @@ const securityHeaders = [
 
 const nextConfig: NextConfig = {
   reactStrictMode: true,
+  serverExternalPackages: ["tiny-secp256k1"],
+  outputFileTracingIncludes: {
+    "/api/**": ["./node_modules/.pnpm/tiny-secp256k1@2.2.3/node_modules/tiny-secp256k1/lib/secp256k1.wasm"],
+  },
   async headers() {
     return [
       {

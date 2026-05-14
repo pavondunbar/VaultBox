@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { sql } from "drizzle-orm";
+import { withMetrics } from "@/lib/monitoring/instrument";
 
-export async function GET() {
+export const GET = withMetrics(async function GET(_req) {
   const checks: Record<string, { status: "ok" | "error"; latencyMs?: number; error?: string }> = {};
 
   // DB connectivity check
@@ -20,4 +21,4 @@ export async function GET() {
     { status: overall, timestamp: new Date().toISOString(), checks },
     { status: overall === "healthy" ? 200 : 503 },
   );
-}
+});

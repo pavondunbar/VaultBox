@@ -290,6 +290,47 @@ export function WalletDetail({
   const [rbfHash, setRbfHash] = useState<string | null>(null);
   const [rbfLoading, setRbfLoading] = useState(false);
 
+  // Rename & Delete
+  const [renameLabel, setRenameLabel] = useState("");
+  const [renameErr, setRenameErr] = useState<string | null>(null);
+  const [renameOk, setRenameOk] = useState(false);
+  const [renameLoading, setRenameLoading] = useState(false);
+  const [deleteLoading, setDeleteLoading] = useState(false);
+  const [deleteConfirm, setDeleteConfirm] = useState(false);
+  const [deleteErr, setDeleteErr] = useState<string | null>(null);
+  const [deleteWarning, setDeleteWarning] = useState<string | null>(null);
+
+  async function rename() {
+    if (!renameLabel.trim()) return;
+    setRenameErr(null); setRenameOk(false); setRenameLoading(true);
+    try {
+      const res = await fetch(`/api/wallets/${walletId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ label: renameLabel.trim() }),
+      });
+      const data = await res.json();
+      if (!res.ok) { setRenameErr(data.error ?? "Rename failed"); return; }
+      setRenameOk(true);
+    } finally { setRenameLoading(false); }
+  }
+
+  async function deleteWallet(force = false) {
+    setDeleteLoading(true);
+    setDeleteErr(null);
+    try {
+      const res = await fetch(`/api/wallets/${walletId}${force ? "?force=true" : ""}`, {
+        method: "DELETE",
+        credentials: "include",
+      });
+      if (res.ok) { window.location.href = "/dashboard"; return; }
+      const data = await res.json();
+      if (data.requiresConfirm) { setDeleteWarning(data.warning); }
+      else { setDeleteErr(data.error ?? "Delete failed"); }
+    } finally { setDeleteLoading(false); }
+  }
+
   async function speedUp() {
     if (!rbfTarget) return;
     setRbfErr(null);
@@ -779,6 +820,89 @@ export function WalletDetail({
       </section>
 
       {role === "owner" && <ShareManagement walletId={walletId} />}
+
+      {role === "owner" && (
+        <section className="rounded-xl border border-white/10 bg-ink-900/50 p-6">
+          <h2 className="text-lg font-medium text-white">Manage Wallet</h2>
+
+          <div className="mt-4 space-y-3">
+            <label className="block text-xs text-slate-400">Rename wallet</label>
+            <div className="flex gap-2">
+              <input
+                type="text"
+                placeholder="New label"
+                value={renameLabel}
+                onChange={(e) => setRenameLabel(e.target.value)}
+                className="flex-1 rounded-lg border border-white/10 bg-ink-950 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-mint-500/40"
+              />
+              <button
+                type="button"
+                disabled={renameLoading || !renameLabel.trim()}
+                onClick={() => void rename()}
+                className="rounded-lg bg-mint-600 px-4 py-2 text-sm font-medium text-ink-950 hover:bg-mint-500 disabled:opacity-50"
+              >
+                {renameLoading ? "Saving…" : "Rename"}
+              </button>
+            </div>
+            {renameErr && <p className="text-xs text-red-400">{renameErr}</p>}
+            {renameOk && <p className="text-xs text-green-400">Label updated! Refresh to see changes.</p>}
+          </div>
+
+          <div className="mt-6 border-t border-white/10 pt-4">
+            <label className="block text-xs text-red-400">Danger zone</label>
+            {!deleteConfirm && !deleteWarning ? (
+              <button
+                type="button"
+                onClick={() => setDeleteConfirm(true)}
+                className="mt-2 rounded-lg border border-red-500/50 px-4 py-2 text-sm text-red-400 hover:bg-red-500/10"
+              >
+                Delete Wallet
+              </button>
+            ) : deleteWarning ? (
+              <div className="mt-2 space-y-2">
+                <p className="text-xs text-amber-400">⚠️ {deleteWarning}</p>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    disabled={deleteLoading}
+                    onClick={() => void deleteWallet(true)}
+                    className="rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-500 disabled:opacity-50"
+                  >
+                    {deleteLoading ? "Deleting…" : "Delete Anyway"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { setDeleteWarning(null); setDeleteConfirm(false); }}
+                    className="rounded-lg border border-white/15 px-3 py-2 text-xs text-slate-300 hover:bg-white/5"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="mt-2 flex items-center gap-2">
+                <span className="text-xs text-red-300">Are you sure? This cannot be undone.</span>
+                <button
+                  type="button"
+                  disabled={deleteLoading}
+                  onClick={() => void deleteWallet()}
+                  className="rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-500 disabled:opacity-50"
+                >
+                  {deleteLoading ? "Deleting…" : "Confirm Delete"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setDeleteConfirm(false)}
+                  className="rounded-lg border border-white/15 px-3 py-2 text-xs text-slate-300 hover:bg-white/5"
+                >
+                  Cancel
+                </button>
+              </div>
+            )}
+            {deleteErr && <p className="mt-2 text-xs text-red-400">{deleteErr}</p>}
+          </div>
+        </section>
+      )}
     </div>
   );
 }

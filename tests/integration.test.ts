@@ -45,7 +45,7 @@ describe("GET /api/health", () => {
     (db.execute as ReturnType<typeof vi.fn>).mockResolvedValue([{ "?column?": 1 }]);
 
     const { GET } = await import("@/app/api/health/route");
-    const res = await GET();
+    const res = await GET(new Request("http://localhost/api/health"));
     const body = await res.json();
 
     expect(res.status).toBe(200);
@@ -59,7 +59,7 @@ describe("GET /api/health", () => {
     (db.execute as ReturnType<typeof vi.fn>).mockRejectedValue(new Error("connection refused"));
 
     const { GET } = await import("@/app/api/health/route");
-    const res = await GET();
+    const res = await GET(new Request("http://localhost/api/health"));
     const body = await res.json();
 
     expect(res.status).toBe(503);

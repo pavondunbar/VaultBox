@@ -10,13 +10,14 @@ import { createBitcoinWallet } from "@/lib/chains/bitcoin";
 import { db } from "@/lib/db";
 import { users, wallets, walletShares, walletTemperature } from "@/lib/db/schema";
 import { check, rateLimitResponse } from "@/lib/security/rate-limit";
+import { withMetrics } from "@/lib/monitoring/instrument";
 
 const createSchema = z.object({
   chain: z.enum(["ethereum", "solana", "bitcoin"]),
   label: z.string().max(64).optional(),
 });
 
-export async function GET(request: Request) {
+export const GET = withMetrics(async function GET(request: Request) {
   const session = await getSessionUser();
   if (!session) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -65,9 +66,9 @@ export async function GET(request: Request) {
   const rows = all.slice(offset, offset + limit);
 
   return NextResponse.json({ wallets: rows, pagination: { total, limit, offset } });
-}
+});
 
-export async function POST(request: Request) {
+export const POST = withMetrics(async function POST(request: Request) {
   const session = await getSessionUser();
   if (!session) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -146,4 +147,4 @@ export async function POST(request: Request) {
     });
 
   return NextResponse.json({ wallet: row });
-}
+});
