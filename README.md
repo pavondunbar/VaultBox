@@ -20,6 +20,7 @@ Full-stack custodial wallet platform for **Ethereum Sepolia**, **Solana Devnet**
 - [Running in a Sandbox Environment](#running-in-a-sandbox-environment)
 - [Makefile Commands](#makefile-commands)
 - [Testing](#testing)
+- [Monitoring Setup](#monitoring-setup)
 - [Project Structure](#project-structure)
 - [Production Warning](#production-warning)
 - [License](#license)
@@ -693,6 +694,14 @@ Open [http://localhost:3000](http://localhost:3000).
 | `make btc-help` | Show Bitcoin testnet usage instructions |
 | `make btc-balance ADDR=<tb1...>` | Check Bitcoin testnet balance via Blockstream API |
 
+### Monitoring
+
+| Command | Description |
+|---------|-------------|
+| `make monitoring-up` | Start Prometheus + Grafana stack (Docker) |
+| `make monitoring-down` | Stop monitoring stack |
+| `make monitoring-logs` | Tail monitoring stack logs |
+
 ### Load Testing
 
 | Command | Description |
@@ -747,6 +756,50 @@ pnpm exec vitest --coverage
 | `mpc.test.ts` | Shamir's Secret Sharing split/reconstruct (2-of-3, 3-of-5) |
 
 All tests run without external dependencies — no database connection, no chain RPC, no SMTP server. Pure unit tests against isolated modules.
+
+---
+
+## Monitoring Setup
+
+VenCura includes a pre-configured Prometheus + Grafana stack for visualizing application metrics.
+
+### Prerequisites
+
+- Docker and Docker Compose
+
+### Quick Start
+
+```bash
+# Start VenCura
+make dev
+
+# Start monitoring stack
+make monitoring-up
+```
+
+- **Grafana:** [http://localhost:3001](http://localhost:3001) — login: `admin` / `admin` (anonymous viewing enabled)
+- **Prometheus:** [http://localhost:9090](http://localhost:9090) — raw query interface
+
+A pre-built "VenCura Overview" dashboard is auto-loaded with panels for:
+
+| Panel | Metric |
+|-------|--------|
+| Request Rate | `rate(vencura_http_requests_total[5m])` |
+| Error Rate | `rate(vencura_http_errors_total[5m])` |
+| P95 Latency | `histogram_quantile(0.95, rate(vencura_http_request_duration_seconds_bucket[5m]))` |
+| Transactions Broadcast | `rate(vencura_tx_broadcast_total[5m])` |
+| Rate Limit Hits | `rate(vencura_rate_limit_hits_total[5m])` |
+| Active Wallets | `vencura_active_wallets` |
+| Pending Approvals | `vencura_approvals_pending` |
+| Indexer Health | `rate(vencura_indexer_ticks_total[5m])` vs errors |
+
+The dashboard auto-refreshes every 10 seconds. Prometheus scrapes `GET /api/metrics` every 15 seconds.
+
+### Stop
+
+```bash
+make monitoring-down
+```
 
 ---
 
@@ -894,6 +947,15 @@ VENCURA/
 ├── examples/
 │   └── api-client-example.ts             # Fetch-based API client reference
 │
+├── monitoring/                           # Prometheus + Grafana configuration
+│   ├── prometheus.yml                    # Prometheus scrape config
+│   └── grafana/
+│       ├── provisioning/
+│       │   ├── datasources/prometheus.yml  # Auto-connect Grafana → Prometheus
+│       │   └── dashboards/dashboards.yml   # Dashboard auto-loading config
+│       └── dashboards/
+│           └── vencura-overview.json     # Pre-built overview dashboard
+│
 ├── load-tests/                           # k6 load testing scripts
 │   ├── k6-smoke.js                       # Smoke test (1 VU sanity check)
 │   ├── k6-load-test.js                   # Load test (ramp to 100 VUs)
@@ -905,6 +967,7 @@ VENCURA/
 │       └── ci.yml                        # CI/CD pipeline (lint, typecheck, test, build)
 │
 ├── Makefile                              # Developer commands
+├── docker-compose.monitoring.yml         # Prometheus + Grafana Docker stack
 ├── package.json                          # Dependencies & scripts (pnpm)
 ├── drizzle.config.ts                     # Drizzle ORM config
 ├── next.config.ts                        # Security headers + Next.js config

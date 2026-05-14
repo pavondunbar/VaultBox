@@ -1,0 +1,65 @@
+{
+  "dashboard": {
+    "title": "VenCura Overview",
+    "uid": "vencura-overview",
+    "panels": [
+      {
+        "title": "Request Rate (req/s)",
+        "type": "timeseries",
+        "gridPos": { "x": 0, "y": 0, "w": 12, "h": 8 },
+        "targets": [{ "expr": "rate(vencura_http_requests_total[5m])", "legendFormat": "requests/s" }]
+      },
+      {
+        "title": "Error Rate (err/s)",
+        "type": "timeseries",
+        "gridPos": { "x": 12, "y": 0, "w": 12, "h": 8 },
+        "targets": [{ "expr": "rate(vencura_http_errors_total[5m])", "legendFormat": "errors/s" }]
+      },
+      {
+        "title": "P95 Latency (seconds)",
+        "type": "timeseries",
+        "gridPos": { "x": 0, "y": 8, "w": 12, "h": 8 },
+        "targets": [{ "expr": "histogram_quantile(0.95, rate(vencura_http_request_duration_seconds_bucket[5m]))", "legendFormat": "p95" }]
+      },
+      {
+        "title": "Transactions Broadcast",
+        "type": "timeseries",
+        "gridPos": { "x": 12, "y": 8, "w": 12, "h": 8 },
+        "targets": [
+          { "expr": "rate(vencura_tx_broadcast_total[5m])", "legendFormat": "success" },
+          { "expr": "rate(vencura_tx_broadcast_errors_total[5m])", "legendFormat": "errors" }
+        ]
+      },
+      {
+        "title": "Rate Limit Hits",
+        "type": "timeseries",
+        "gridPos": { "x": 0, "y": 16, "w": 8, "h": 8 },
+        "targets": [{ "expr": "rate(vencura_rate_limit_hits_total[5m])", "legendFormat": "hits/s" }]
+      },
+      {
+        "title": "Active Wallets",
+        "type": "stat",
+        "gridPos": { "x": 8, "y": 16, "w": 4, "h": 8 },
+        "targets": [{ "expr": "vencura_active_wallets", "legendFormat": "wallets" }]
+      },
+      {
+        "title": "Pending Approvals",
+        "type": "stat",
+        "gridPos": { "x": 12, "y": 16, "w": 4, "h": 8 },
+        "targets": [{ "expr": "vencura_approvals_pending", "legendFormat": "pending" }]
+      },
+      {
+        "title": "Indexer Health",
+        "type": "timeseries",
+        "gridPos": { "x": 16, "y": 16, "w": 8, "h": 8 },
+        "targets": [
+          { "expr": "rate(vencura_indexer_ticks_total[5m])", "legendFormat": "ticks/s" },
+          { "expr": "rate(vencura_indexer_errors_total[5m])", "legendFormat": "errors/s" }
+        ]
+      }
+    ],
+    "schemaVersion": 39,
+    "time": { "from": "now-1h", "to": "now" },
+    "refresh": "10s"
+  }
+}

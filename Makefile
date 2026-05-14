@@ -315,15 +315,31 @@ nuke: clean ## Remove all generated files and reinstall
 open-docs: ## Open the README in the default browser
 	@open README.md 2>/dev/null || xdg-open README.md 2>/dev/null || echo "Open README.md manually."
 
+# ── Monitoring (Prometheus + Grafana) ────────
+
+monitoring-up: ## Start Prometheus + Grafana stack
+	@docker compose -f docker-compose.monitoring.yml up -d
+	@echo "Prometheus: http://localhost:9090"
+	@echo "Grafana:    http://localhost:3001 (admin/admin)"
+
+monitoring-down: ## Stop monitoring stack
+	@docker compose -f docker-compose.monitoring.yml down
+
+monitoring-logs: ## Tail monitoring stack logs
+	@docker compose -f docker-compose.monitoring.yml logs -f
+
 # ── Load Testing ─────────────────────────────
 
 load-smoke: ## Run k6 smoke test (1 VU, sanity check)
+	@command -v k6 >/dev/null 2>&1 || { echo "Error: k6 is not installed. Install with: brew install k6"; exit 1; }
 	@k6 run load-tests/k6-smoke.js
 
 load-test: ## Run k6 load test (ramp to 100 VUs)
+	@command -v k6 >/dev/null 2>&1 || { echo "Error: k6 is not installed. Install with: brew install k6"; exit 1; }
 	@k6 run load-tests/k6-load-test.js
 
 load-stress: ## Run k6 stress test (ramp to 300 VUs)
+	@command -v k6 >/dev/null 2>&1 || { echo "Error: k6 is not installed. Install with: brew install k6"; exit 1; }
 	@k6 run load-tests/k6-stress.js
 
 # ── Key Rotation ─────────────────────────────
