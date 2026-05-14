@@ -570,9 +570,13 @@ make install
 # Obtain Encryption Key. Copy and paste it. You will need it for your .env file
 openssl rand -hex 32
 
+# Obtain JWT Secret Key. Copy and paste it. You will need it for your .env file
+openssl rand -base64 48
+
 # Configure environment
 cp .env.example .env
-# Edit .env — set DATABASE_URL, JWT_SECRET, ENCRYPTION_KEY, ETH_RPC_URL
+# Edit .env: set DATABASE_URL, JWT_SECRET, ENCRYPTION_KEY, ETH_RPC_URL, SOL_RPC_URL, BTC_API_URL
+# For DATABASE_URL, simply replace 'user' with a username and 'pass' with a password. Leave everything else as is. 
 
 # Create the vencura database
 make db-create
