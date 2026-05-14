@@ -88,3 +88,49 @@ export function numericGte(a: string, b: string): boolean {
   const scaledB = parseHumanAmountToBigInt(b, maxDecimals);
   return scaledA >= scaledB;
 }
+
+/**
+ * Strictly greater than comparison for decimal strings.
+ */
+export function numericGt(a: string, b: string): boolean {
+  const fracA = a.includes(".") ? a.split(".")[1].length : 0;
+  const fracB = b.includes(".") ? b.split(".")[1].length : 0;
+  const maxDecimals = Math.max(fracA, fracB);
+  const scaledA = parseHumanAmountToBigInt(a, maxDecimals);
+  const scaledB = parseHumanAmountToBigInt(b, maxDecimals);
+  return scaledA > scaledB;
+}
+
+/**
+ * Subtract two decimal strings: a - b. Returns result as a trimmed decimal string.
+ * Assumes a >= b.
+ */
+export function numericSub(a: string, b: string): string {
+  const fracA = a.includes(".") ? a.split(".")[1].length : 0;
+  const fracB = b.includes(".") ? b.split(".")[1].length : 0;
+  const maxDecimals = Math.max(fracA, fracB);
+  const scaledA = parseHumanAmountToBigInt(a, maxDecimals);
+  const scaledB = parseHumanAmountToBigInt(b, maxDecimals);
+  const diff = scaledA - scaledB;
+  if (maxDecimals === 0) return diff.toString();
+  const diffStr = diff.toString().padStart(maxDecimals + 1, "0");
+  const whole = diffStr.slice(0, diffStr.length - maxDecimals) || "0";
+  const frac = diffStr.slice(diffStr.length - maxDecimals).replace(/0+$/, "");
+  return frac ? `${whole}.${frac}` : whole;
+}
+
+/**
+ * Multiply a decimal string by a rational fraction (num/den).
+ * Used for computing percentages without floating-point.
+ */
+export function numericMulFrac(a: string, num: bigint, den: bigint): string {
+  const fracA = a.includes(".") ? a.split(".")[1].length : 0;
+  // Use extra precision to avoid truncation artifacts
+  const precision = fracA + 9;
+  const scaled = parseHumanAmountToBigInt(a, precision);
+  const result = (scaled * num) / den;
+  const resultStr = result.toString().padStart(precision + 1, "0");
+  const whole = resultStr.slice(0, resultStr.length - precision) || "0";
+  const frac = resultStr.slice(resultStr.length - precision).replace(/0+$/, "");
+  return frac ? `${whole}.${frac}` : whole;
+}

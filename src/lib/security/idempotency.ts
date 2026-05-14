@@ -1,6 +1,7 @@
 import { db } from "@/lib/db";
 import { idempotencyKeys } from "@/lib/db/schema";
 import { and, eq } from "drizzle-orm";
+import { sql } from "drizzle-orm";
 import { NextResponse } from "next/server";
 
 /**
@@ -25,18 +26,27 @@ export async function getCachedResponse(
 }
 
 /**
- * Store a response for future idempotent replays.
+ * Atomically claim an idempotency key and cache the response.
+ * Uses INSERT ... ON CONFLICT DO NOTHING to prevent TOCTOU races —
+ * if two concurrent requests race, only one INSERT succeeds.
+ * Returns true if this call won the race, false if the key was already claimed.
  */
 export async function cacheResponse(
   key: string,
   userId: string,
   body: unknown,
   statusCode: number,
-): Promise<void> {
-  await db.insert(idempotencyKeys).values({
-    key,
-    userId,
-    response: JSON.stringify(body),
-    statusCode: String(statusCode),
-  });
+): Promise<boolean> {
+  const result = await db
+    .insert(idempotencyKeys)
+    .values({
+      key,
+      userId,
+      response: JSON.stringify(body),
+      statusCode: String(statusCode),
+    })
+    .onConflictDoNothing({ target: [idempotencyKeys.key, idempotencyKeys.userId] });
+
+  // rowCount = 0 means conflict (key already existed)
+  return (result.rowCount ?? 0) > 0;
 }

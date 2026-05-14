@@ -2,6 +2,7 @@ import { db } from "@/lib/db";
 import { wallets, walletTemperature } from "@/lib/db/schema";
 import { eq, and } from "drizzle-orm";
 import type { DbContext } from "@/lib/db/types";
+import { numericGt, numericSub, numericMulFrac } from "@/lib/pure/amounts";
 
 export type WalletTemp = "hot" | "cold";
 
@@ -71,15 +72,14 @@ export function getHotThreshold(chain: string): string {
 
 /**
  * Determine if a hot wallet balance exceeds the threshold and needs sweeping.
+ * Uses string-based numeric comparison to avoid floating-point precision issues.
  */
 export function shouldSweepToCold(
   chain: string,
   currentBalance: string,
 ): boolean {
   const threshold = getHotThreshold(chain);
-  const balNum = parseFloat(currentBalance);
-  const threshNum = parseFloat(threshold);
-  return balNum > threshNum;
+  return numericGt(currentBalance, threshold);
 }
 
 /**
@@ -93,18 +93,17 @@ export function getColdWalletAddress(chain: string): string | null {
 /**
  * Calculate the amount to sweep from hot to cold.
  * Keeps the hot wallet at 50% of threshold after sweep.
+ * Uses BigInt arithmetic to avoid floating-point precision loss.
  */
 export function calculateSweepAmount(
   chain: string,
   currentBalance: string,
 ): string | null {
   const threshold = getHotThreshold(chain);
-  const balNum = parseFloat(currentBalance);
-  const threshNum = parseFloat(threshold);
-  if (balNum <= threshNum) return null;
-  const keepAmount = threshNum * 0.5;
-  const sweepAmount = balNum - keepAmount;
-  return sweepAmount.toFixed(9).replace(/\.?0+$/, "");
+  if (!numericGt(currentBalance, threshold)) return null;
+  // keepAmount = threshold * 0.5 = threshold * 1/2
+  const keepAmount = numericMulFrac(threshold, 1n, 2n);
+  return numericSub(currentBalance, keepAmount);
 }
 
 /**

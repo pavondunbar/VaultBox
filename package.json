@@ -26,6 +26,7 @@
     "nodemailer": "^8.0.7",
     "otpauth": "^9.5.1",
     "pg": "^8.14.1",
+    "prom-client": "15.1.3",
     "qrcode": "^1.5.4",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",

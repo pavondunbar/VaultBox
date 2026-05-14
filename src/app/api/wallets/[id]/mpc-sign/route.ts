@@ -1,12 +1,14 @@
 import { NextResponse } from "next/server";
-import { reconstructPrivateKey } from "@/lib/crypto/mpc";
+import crypto from "node:crypto";
+import { thresholdSign } from "@/lib/crypto/mpc";
 
 /**
  * POST /api/wallets/:id/mpc-sign
  * Body: { message: string, shares: { index: number, data: string }[] }
  *
- * Reconstructs the private key from threshold shares and signs the message.
- * In production, each share would come from a separate custodian/server.
+ * Signs a message using threshold MPC — the full private key is never
+ * reconstructed in memory. Each share contributes a partial signature
+ * that is combined into the final ECDSA signature.
  */
 export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -23,12 +25,16 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   }
 
   try {
-    const privateKeyHex = reconstructPrivateKey(body.shares);
+    // Hash the message (Ethereum personal_sign prefix)
+    const prefix = `\x19Ethereum Signed Message:\n${body.message.length}`;
+    const messageHash = crypto
+      .createHash("sha256")
+      .update(Buffer.concat([Buffer.from(prefix), Buffer.from(body.message)]))
+      .digest();
 
-    // Sign using the reconstructed key (Ethereum secp256k1 signing)
-    const { privateKeyToAccount } = await import("viem/accounts");
-    const account = privateKeyToAccount(`0x${privateKeyHex}` as `0x${string}`);
-    const signature = await account.signMessage({ message: body.message });
+    // Threshold sign without reconstructing the full key
+    const { r, s, v } = await thresholdSign(body.shares, messageHash);
+    const signature = `0x${r}${s}${v.toString(16).padStart(2, "0")}`;
 
     return NextResponse.json({ walletId: id, signature });
   } catch (e) {
