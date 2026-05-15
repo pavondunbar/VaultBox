@@ -19,6 +19,7 @@ Full-stack custodial wallet platform for **Ethereum Sepolia**, **Solana Devnet**
 - [User Flow](#user-flow)
 - [Running in a Sandbox Environment](#running-in-a-sandbox-environment)
 - [Makefile Commands](#makefile-commands)
+- [SoftHSM Integration](#softhsm-integration)
 - [Testing](#testing)
 - [Monitoring Setup](#monitoring-setup)
 - [Project Structure](#project-structure)
@@ -127,7 +128,46 @@ The core challenge is securing private keys at rest while making them available 
 Handles user registration, login, session management, email verification, and TOTP two-factor authentication. Passwords are hashed with bcryptjs (14 rounds). Sessions are stateless JWT tokens issued via jose and stored in httpOnly cookies. TOTP secrets are generated with otpauth and verified on login when 2FA is enabled.
 
 ### Crypto Vault (`src/lib/crypto/vault.ts`)
-Encrypts and decrypts private keys using AES-256-GCM with a 256-bit master key (`ENCRYPTION_KEY`). Each encryption produces a unique 12-byte IV and 16-byte authentication tag. The ciphertext, IV, and tag are stored as a single base64-encoded blob in the database.
+Encrypts and decrypts private keys using AES-256-GCM with a 256-bit master key (`ENCRYPTION_KEY`). Each encryption produces a unique 12-byte IV and 16-byte authentication tag. The ciphertext, IV, and tag are stored as a single base64-encoded blob in the database. When `SOFTHSM_MASTER_PASSWORD` is set, the vault delegates all encrypt/decrypt operations to the SoftHSM module instead.
+
+### SoftHSM (`src/lib/crypto/softhsm/`)
+
+Production-hardened software HSM that replaces direct `ENCRYPTION_KEY` usage with a managed key lifecycle. Enable by setting `SOFTHSM_MASTER_PASSWORD` in your environment.
+
+**Cryptographic hardening:**
+- **AES-256-GCM-SIV** (via `@noble/ciphers`) — nonce-misuse-resistant encryption; safe even if a nonce is accidentally reused
+- **Argon2id** (via `argon2`) — memory-hard KDF (64MB, 3 iterations, 4 parallelism) replacing PBKDF2 for master key derivation
+- **AES-KWP** (RFC 5649) — key wrapping for key-encrypting-keys
+- **Constant-time comparisons** — `crypto.timingSafeEqual` on all security-critical paths
+
+**Key lifecycle:**
+- Key versioning with version prefix in ciphertext — old versions remain decryptable after rotation
+- `rotateKey()` archives the current version and generates a new one atomically
+- Policy enforcement: `allowEncrypt`, `allowDecrypt`, `maxOperations`, `expiresAt`, `allowedCallers`
+- Background expiry enforcement archives keys past their expiration
+
+**Access control:**
+- Per-caller HMAC-based authentication (`SOFTHSM_CALLER_SECRET`)
+- Per-key ACLs restrict which services can use which keys
+- Sliding-window rate limiting per key (default: 100 ops/min)
+
+**Security:**
+- HMAC-SHA256 tamper detection on the keystore file — zeroizes all keys on mismatch
+- Atomic file writes (write-to-temp + rename) prevent corruption
+- Memory zeroing (`randomFillSync` + `fill(0)`) on session close and process exit
+- FIPS mode support (`SOFTHSM_FIPS=1`) — enables OpenSSL FIPS provider when available
+- Startup Known Answer Tests (KAT) verify AES-GCM, PBKDF2, HMAC, and CSPRNG before accepting operations
+
+**Process isolation:**
+- `softhsm/process.ts` runs the HSM in a separate process communicating via Unix domain socket
+- `softhsm/client.ts` provides an IPC client with timeout handling and authenticated requests
+- Socket file restricted to `0o600`
+
+**Operational:**
+- Shamir's Secret Sharing for M-of-N ceremony-based unlock (no single operator holds the full password)
+- Externalized HMAC-chained audit log (`.audit.jsonl`) with optional webhook shipping to SIEM
+- Encrypted backups to configurable directory
+- Prometheus-compatible metrics export
 
 ### Key Rotation (`src/lib/crypto/key-rotation.ts`)
 Supports rotating the master encryption key without downtime. The `rotateEncryptionKey(oldKey, newKey)` function decrypts all wallet private keys with the old master key and re-encrypts them with the new key in configurable batches (default 50). Each batch is wrapped in a database transaction — if any wallet in a batch fails, the entire batch rolls back atomically, ensuring no wallet is left in a mixed-key state after a crash. The `generateEncryptionKey()` helper produces a new 256-bit key. An admin API endpoint (`POST /api/admin/rotate-key`) validates the old key matches the current `ENCRYPTION_KEY` before executing the rotation. Failed batches are tracked and reported without aborting the entire operation.
@@ -623,6 +663,20 @@ Open [http://localhost:3000](http://localhost:3000).
 | `SMTP_USER` | No | SMTP username |
 | `SMTP_PASS` | No | SMTP password |
 | `SMTP_FROM` | No | Sender email address |
+| `SOFTHSM_MASTER_PASSWORD` | No | SoftHSM master password (min 8 chars). When set, enables SoftHSM mode. |
+| `SOFTHSM_KEYSTORE_PATH` | No | Path to encrypted keystore file (default: `./softhsm-keystore.enc`) |
+| `SOFTHSM_KEY_ID` | No | Named key to use for wallet encryption (default: `softhsm-master`) |
+| `SOFTHSM_AUDIT_LOG_PATH` | No | Path to externalized audit log (default: `<keystore>.audit.jsonl`) |
+| `SOFTHSM_BACKUP_DIR` | No | Directory for encrypted keystore backups |
+| `SOFTHSM_CALLER_SECRET` | No | Shared secret for HMAC-based caller authentication |
+| `SOFTHSM_RATE_LIMIT` | No | Max operations per key per window (default: 100) |
+| `SOFTHSM_RATE_WINDOW_MS` | No | Rate limit window in ms (default: 60000) |
+| `SOFTHSM_SESSION_TIMEOUT_MS` | No | Auto-lock timeout in ms (default: 300000) |
+| `SOFTHSM_AUDIT_WEBHOOK` | No | Webhook URL for audit log shipping (SIEM integration) |
+| `SOFTHSM_AUDIT_HMAC_KEY` | No | Hex key for audit log HMAC chain (auto-derived if not set) |
+| `SOFTHSM_SOCKET_PATH` | No | Unix socket path for process isolation mode (default: `/tmp/softhsm.sock`) |
+| `SOFTHSM_FIPS` | No | Set to `1` to enable OpenSSL FIPS mode (requires FIPS provider) |
+| `SOFTHSM_SHARES` | No | Comma-separated Shamir share JSON for M-of-N unlock |
 
 ---
 
@@ -724,6 +778,85 @@ Open [http://localhost:3000](http://localhost:3000).
 |---------|-------------|
 | `make rotate-key` | Generate a new encryption key and show rotation instructions |
 
+### SoftHSM
+
+| Command | Description |
+|---------|-------------|
+| `make softhsm-init` | Initialize the SoftHSM keystore (generates master AES-256 key) |
+| `make softhsm-init-split` | Initialize with Shamir 2-of-3 key splitting (prints shares) |
+| `make softhsm-process` | Start SoftHSM as an isolated process (Unix socket server) |
+| `make softhsm-backup` | Create encrypted backup of the keystore |
+| `make softhsm-audit-verify` | Verify integrity of the HMAC-chained audit log |
+| `make softhsm-metrics` | Show SoftHSM health metrics (ops, errors, keys) |
+| `make softhsm-status` | Check if SoftHSM is enabled and keystore exists |
+
+---
+
+## SoftHSM Integration
+
+VaultBox includes a production-hardened software HSM that replaces direct `ENCRYPTION_KEY` usage with a managed key lifecycle. When enabled, all wallet private key encryption/decryption is delegated to the SoftHSM module.
+
+### Quick Start
+
+```bash
+# 1. Initialize the keystore (pass password inline — .env is not auto-loaded by scripts)
+SOFTHSM_MASTER_PASSWORD='your-password-here' make softhsm-init
+
+# 2. Add to .env so the Next.js app uses SoftHSM mode
+echo 'SOFTHSM_MASTER_PASSWORD=your-password-here' >> .env
+
+# 3. Start the app — SoftHSM is now active
+make dev
+
+# 4. Verify it's enabled
+make softhsm-status
+```
+
+### With Shamir Secret Splitting (2-of-3)
+
+For split-knowledge key management where no single operator holds the full password:
+
+```bash
+# Initialize and print 3 shares (any 2 can reconstruct the password)
+SOFTHSM_MASTER_PASSWORD='your-password-here' make softhsm-init-split
+
+# Store shares separately (different people, locations, or systems)
+# To unlock, provide any 2 shares in .env:
+# SOFTHSM_SHARES={"index":1,"data":"..."},{"index":3,"data":"..."}
+```
+
+> **Note:** Shamir splitting only provides real security when shares are stored in separate trust boundaries (different servers, different operators). On a single machine, use the plain password instead.
+
+### How It Works
+
+1. `SOFTHSM_MASTER_PASSWORD` is set → `vault.ts` detects HSM mode at startup
+2. All `encryptSecret()` / `decryptSecret()` calls delegate to `hsmEncryptSecret()` / `hsmDecryptSecret()`
+3. The SoftHSM module derives an AES-256 key from the master password via Argon2id
+4. Wallet private keys are encrypted with AES-256-GCM-SIV (nonce-misuse-resistant)
+5. The keystore is persisted to `softhsm-keystore.enc` with HMAC-SHA256 tamper detection
+
+### Verifying SoftHSM Is Active
+
+- **`make softhsm-status`** — confirms env var is set and keystore file exists
+- **Create a wallet** — if it succeeds, encryption is working through the HSM
+- **Check metrics** — `make softhsm-metrics` shows operation counts (encrypts/decrypts > 0 after wallet creation)
+
+### Operational Commands
+
+```bash
+# Create encrypted backup
+make softhsm-backup
+
+# Verify audit log integrity
+make softhsm-audit-verify
+
+# View health metrics (operation counts, errors, key count)
+make softhsm-metrics
+
+# Run as isolated process (Unix socket IPC)
+make softhsm-process
+```
+
 ---
 
 ## Testing
@@ -762,6 +895,7 @@ pnpm exec vitest --coverage
 | `vault.test.ts` | AES-256-GCM encrypt/decrypt round-trip |
 | `wallet-access.test.ts` | Role-based wallet access control (owner/editor/viewer) |
 | `mpc.test.ts` | Shamir's Secret Sharing split/reconstruct (2-of-3, 3-of-5) |
+| `softhsm.test.ts` | SoftHSM encrypt/decrypt, persistence, tamper detection, key rotation, policy enforcement, rate limiting |
 
 All tests run without external dependencies — no database connection, no chain RPC, no SMTP server. Pure unit tests against isolated modules.
 
@@ -882,9 +1016,21 @@ VAULTBOX/
 │   │   │   ├── rpc-failover.ts           # Multi-RPC failover with circuit breaker
 │   │   │   └── types.ts                  # Chain-agnostic interface + NormalizedTx
 │   │   ├── crypto/
-│   │   │   ├── vault.ts                  # AES-256-GCM encrypt/decrypt
+│   │   │   ├── vault.ts                  # AES-256-GCM encrypt/decrypt (delegates to SoftHSM when enabled)
+│   │   │   ├── hsm-vault.ts             # SoftHSM re-exports (backward compat)
 │   │   │   ├── key-rotation.ts           # Master key rotation (batch re-encryption)
-│   │   │   └── mpc.ts                    # Shamir's Secret Sharing (MPC threshold signing)
+│   │   │   ├── mpc.ts                    # Shamir's Secret Sharing (MPC threshold signing)
+│   │   │   └── softhsm/                  # Production-hardened SoftHSM module
+│   │   │       ├── core.ts               # Main SoftHSM class (versioning, rotation, ACLs)
+│   │   │       ├── types.ts              # All interfaces and type definitions
+│   │   │       ├── audit.ts              # HMAC-chained externalized audit log
+│   │   │       ├── shamir.ts             # M-of-N key splitting (Shamir's Secret Sharing)
+│   │   │       ├── rate-limiter.ts       # Per-key sliding window rate limiter
+│   │   │       ├── self-test.ts          # Startup KAT + FIPS mode activation
+│   │   │       ├── metrics.ts            # Health metrics + Prometheus export
+│   │   │       ├── process.ts            # Isolated process worker (Unix socket server)
+│   │   │       ├── client.ts             # IPC client for process isolation mode
+│   │   │       └── index.ts              # Exports and singleton management
 │   │   ├── db/
 │   │   │   ├── index.ts                  # Database connection
 │   │   │   ├── schema.ts                # Drizzle ORM schema
@@ -995,7 +1141,7 @@ VAULTBOX/
 
 | Missing Component | Risk if Absent |
 |-------------------|----------------|
-| HSM-backed key storage (Thales, AWS CloudHSM, YubiHSM) | Software-encrypted keys can be extracted by anyone with DB + `ENCRYPTION_KEY` access |
+| ~~HSM-backed key storage (Thales, AWS CloudHSM, YubiHSM)~~ | ✅ **Implemented** — SoftHSM module with AES-256-GCM-SIV encryption, Argon2id key derivation, key versioning/rotation, per-key ACLs, HMAC tamper detection, process isolation via Unix socket, Shamir M-of-N unlock, FIPS mode support |
 | ~~MPC threshold signing (Fireblocks, Lit Protocol)~~ | ✅ **Implemented** — Shamir's Secret Sharing (2-of-3) with threshold signing (full key never reconstructed in memory) |
 | ~~Key ceremony & rotation procedures~~ | ✅ **Implemented** — Transactional batch key rotation via admin API (crash-safe), key generation helper |
 | TLS termination & certificate pinning | Cookie-based sessions require HTTPS — plaintext in development exposes tokens |

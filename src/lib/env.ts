@@ -7,6 +7,11 @@ const serverEnvSchema = z.object({
   ETH_RPC_URL: z.string().min(1),
   SOL_RPC_URL: z.string().min(1),
   BTC_API_URL: z.string().url(),
+  // SoftHSM (optional — when set, ENCRYPTION_KEY is still required for validation
+  // but the SoftHSM handles actual encrypt/decrypt operations)
+  SOFTHSM_MASTER_PASSWORD: z.string().min(8).optional(),
+  SOFTHSM_KEYSTORE_PATH: z.string().optional(),
+  SOFTHSM_KEY_ID: z.string().optional(),
 });
 
 export type ServerEnv = z.infer<typeof serverEnvSchema>;
@@ -20,6 +25,9 @@ export function getServerEnv(): ServerEnv {
     ETH_RPC_URL: process.env.ETH_RPC_URL,
     SOL_RPC_URL: process.env.SOL_RPC_URL,
     BTC_API_URL: process.env.BTC_API_URL ?? process.env.BTC_RPC_URL,
+    SOFTHSM_MASTER_PASSWORD: process.env.SOFTHSM_MASTER_PASSWORD || undefined,
+    SOFTHSM_KEYSTORE_PATH: process.env.SOFTHSM_KEYSTORE_PATH || undefined,
+    SOFTHSM_KEY_ID: process.env.SOFTHSM_KEY_ID || undefined,
   });
   if (!parsed.success) {
     throw new Error(`Invalid environment: ${parsed.error.message}`);

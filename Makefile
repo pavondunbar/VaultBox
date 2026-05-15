@@ -5,7 +5,8 @@
        db-approvals db-temperature db-indexer-cursors \
        health health-api metrics clean nuke logs demo open-docs \
        rbf-help rbf-replace rbf-pending \
-       btc-help btc-balance
+       btc-help btc-balance \
+       hsm-init softhsm-init softhsm-init-split softhsm-process softhsm-backup softhsm-audit-verify softhsm-metrics softhsm-status
 
 # ──────────────────────────────────────────────
 # VaultBox — Custodial Wallet Platform
@@ -347,3 +348,37 @@ load-stress: ## Run k6 stress test (ramp to 300 VUs)
 rotate-key: ## Generate a new encryption key for rotation
 	@echo "New key: $$(openssl rand -hex 32)"
 	@echo "Use POST /api/admin/rotate-key with { oldKey, newKey } to rotate."
+
+# ── SoftHSM ───────────────────────────────────
+
+softhsm-init: ## Initialize the SoftHSM keystore (generates master key)
+	@npx tsx scripts/softhsm-init.ts
+
+softhsm-init-split: ## Initialize with Shamir key splitting (2-of-3)
+	@npx tsx scripts/softhsm-init.ts --split
+
+softhsm-process: ## Start SoftHSM as isolated process (Unix socket)
+	@npx tsx src/lib/crypto/softhsm/process.ts
+
+softhsm-backup: ## Create encrypted backup of the keystore
+	@npx tsx -e "import{getSoftHSM}from'./src/lib/crypto/softhsm';console.log('Backup:',getSoftHSM().createBackup())"
+
+softhsm-audit-verify: ## Verify integrity of the SoftHSM audit log
+	@npx tsx -e "import{AuditLog}from'./src/lib/crypto/softhsm';const a=new AuditLog(process.env.SOFTHSM_AUDIT_LOG_PATH||'./softhsm-keystore.enc.audit.jsonl');const r=a.verify();console.log(r===-1?'✓ Audit log integrity OK':'✗ Corrupted at sequence '+r)"
+
+softhsm-metrics: ## Show SoftHSM health metrics
+	@npx tsx -e "import{getSoftHSM}from'./src/lib/crypto/softhsm';console.log(JSON.stringify(getSoftHSM().getMetrics(),null,2))"
+
+softhsm-status: ## Check if SoftHSM is enabled and keystore exists
+	@echo "SoftHSM Status:"; \
+	if [ -n "$$SOFTHSM_MASTER_PASSWORD" ] || grep -q '^SOFTHSM_MASTER_PASSWORD=' .env 2>/dev/null; then \
+		echo "  Mode: ENABLED"; \
+	else \
+		echo "  Mode: DISABLED (set SOFTHSM_MASTER_PASSWORD in .env to enable)"; \
+	fi; \
+	STORE=$${SOFTHSM_KEYSTORE_PATH:-./softhsm-keystore.enc}; \
+	if [ -f "$$STORE" ]; then \
+		echo "  Keystore: $$STORE (exists)"; \
+	else \
+		echo "  Keystore: $$STORE (not found — run 'make softhsm-init')"; \
+	fi

@@ -1,10 +1,16 @@
 import crypto from "node:crypto";
+import { hsmEncryptSecret, hsmDecryptSecret } from "./hsm-vault";
 
 const IV_LENGTH = 12;
 const AUTH_TAG_LENGTH = 16;
 
+/** True when SoftHSM mode is active (SOFTHSM_MASTER_PASSWORD is set). */
+const HSM_ENABLED = !!process.env.SOFTHSM_MASTER_PASSWORD;
+
 /** AES-256-GCM encrypt; returns base64(iv || tag || ciphertext). */
 export function encryptSecret(plaintext: string, keyHex: string): string {
+  if (HSM_ENABLED) return hsmEncryptSecret(plaintext, keyHex);
+
   const key = Buffer.from(keyHex, "hex");
   if (key.length !== 32) {
     throw new Error("ENCRYPTION_KEY must decode to 32 bytes");
@@ -20,6 +26,8 @@ export function encryptSecret(plaintext: string, keyHex: string): string {
 }
 
 export function decryptSecret(ciphertextB64: string, keyHex: string): string {
+  if (HSM_ENABLED) return hsmDecryptSecret(ciphertextB64, keyHex);
+
   const key = Buffer.from(keyHex, "hex");
   if (key.length !== 32) {
     throw new Error("ENCRYPTION_KEY must decode to 32 bytes");
