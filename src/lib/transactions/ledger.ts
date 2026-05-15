@@ -33,26 +33,30 @@ export async function recordLedgerEntries(
     target: [ledgerEntries.txHash, ledgerEntries.walletId, ledgerEntries.entryType],
   });
 
-  // Update materialized wallet_balances
-  for (const entry of entries) {
-    const delta = entry.entryType === "credit" ? entry.amount : `-${entry.amount}`;
-    await ctx
-      .insert(walletBalances)
-      .values({
-        walletId: entry.walletId,
-        chain: entry.chain,
-        tokenSymbol: entry.tokenSymbol,
-        tokenAddress: entry.tokenAddress,
-        balance: entry.amount,
-        updatedAt: new Date(),
-      })
-      .onConflictDoUpdate({
-        target: [walletBalances.walletId, walletBalances.tokenAddress],
-        set: {
-          balance: sql`(${walletBalances.balance}::numeric + ${delta}::numeric)::text`,
+  // Update materialized wallet_balances (non-fatal — table may not exist)
+  try {
+    for (const entry of entries) {
+      const delta = entry.entryType === "credit" ? entry.amount : `-${entry.amount}`;
+      await ctx
+        .insert(walletBalances)
+        .values({
+          walletId: entry.walletId,
+          chain: entry.chain,
+          tokenSymbol: entry.tokenSymbol,
+          tokenAddress: entry.tokenAddress,
+          balance: entry.amount,
           updatedAt: new Date(),
-        },
-      });
+        })
+        .onConflictDoUpdate({
+          target: [walletBalances.walletId, walletBalances.tokenAddress],
+          set: {
+            balance: sql`(${walletBalances.balance}::numeric + ${delta}::numeric)::text`,
+            updatedAt: new Date(),
+          },
+        });
+    }
+  } catch {
+    // wallet_balances is a read-optimization; don't fail the transaction if it's unavailable
   }
 }
 

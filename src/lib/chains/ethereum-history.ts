@@ -1,7 +1,13 @@
 import { formatEther, formatUnits } from "viem";
 import type { NormalizedTx } from "@/lib/chains/types";
 
-const ETHERSCAN_SEPOLIA_API = "https://api-sepolia.etherscan.io/api";
+// Etherscan migrated to a unified V2 multichain API in August 2025.
+// The legacy V1 endpoint (https://api-sepolia.etherscan.io/api) now returns:
+//   {"status":"0","message":"NOTOK","result":"You are using a deprecated V1 endpoint…"}
+// V2 requires both a `chainid` query param and an API key.
+// See: https://docs.etherscan.io/v2-migration
+const ETHERSCAN_V2_API = "https://api.etherscan.io/v2/api";
+const SEPOLIA_CHAIN_ID = "11155111";
 const FETCH_TIMEOUT_MS = 10_000;
 const MAX_RESULTS = 50;
 
@@ -27,13 +33,14 @@ type EtherscanTokenTx = {
 
 type EtherscanResponse<T> = {
   status: string;
+  message?: string;
   result: T[] | string;
 };
 
 async function fetchEtherscan<T>(
   params: Record<string, string>,
 ): Promise<T[]> {
-  const url = new URL(ETHERSCAN_SEPOLIA_API);
+  const url = new URL(ETHERSCAN_V2_API);
   for (const [key, value] of Object.entries(params)) {
     url.searchParams.set(key, value);
   }
@@ -43,11 +50,27 @@ async function fetchEtherscan<T>(
   });
 
   if (!response.ok) {
+    console.warn(
+      `[ethereum-history] Etherscan HTTP ${response.status} for action=${params.action}`,
+    );
     return [];
   }
 
   const data = (await response.json()) as EtherscanResponse<T>;
-  if (data.status !== "1" || !Array.isArray(data.result)) {
+
+  // Etherscan returns status="0" for both "no results" and actual errors.
+  // "No transactions found" is a normal empty result; anything else is an error
+  // we should surface so future API breakage (like the V1→V2 migration) is visible.
+  if (data.status !== "1") {
+    if (typeof data.result === "string" && data.result !== "No transactions found") {
+      console.warn(
+        `[ethereum-history] Etherscan error for action=${params.action}: ${data.message ?? ""} — ${data.result}`,
+      );
+    }
+    return [];
+  }
+
+  if (!Array.isArray(data.result)) {
     return [];
   }
 
@@ -117,8 +140,21 @@ export async function fetchEthereumHistory(
   walletAddress: string,
   apiKey: string | null,
 ): Promise<NormalizedTx[]> {
+  // V2 requires an API key. Without one, the API returns
+  // {"status":"0","result":"Missing/Invalid API Key"} and we cannot sync.
+  // Surface this clearly instead of failing silently — that's how the V1
+  // deprecation went unnoticed for so long.
+  if (!apiKey) {
+    console.warn(
+      "[ethereum-history] ETHERSCAN_API_KEY is not set — Ethereum transaction history sync is disabled. " +
+        "Get a free key at https://etherscan.io/apidashboard.",
+    );
+    return [];
+  }
+
   try {
     const baseParams: Record<string, string> = {
+      chainid: SEPOLIA_CHAIN_ID,
       module: "account",
       address: walletAddress,
       startblock: "0",
@@ -126,11 +162,8 @@ export async function fetchEthereumHistory(
       page: "1",
       offset: String(MAX_RESULTS),
       sort: "desc",
+      apikey: apiKey,
     };
-
-    if (apiKey) {
-      baseParams.apikey = apiKey;
-    }
 
     const [nativeTxs, tokenTxs] = await Promise.all([
       fetchEtherscan<EtherscanTx>({
@@ -160,7 +193,12 @@ export async function fetchEthereumHistory(
     }
 
     return normalized;
-  } catch {
+  } catch (e) {
+    console.warn(
+      `[ethereum-history] Failed to fetch history for ${walletAddress}: ${
+        e instanceof Error ? e.message : String(e)
+      }`,
+    );
     return [];
   }
 }

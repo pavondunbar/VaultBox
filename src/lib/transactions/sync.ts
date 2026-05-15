@@ -74,7 +74,14 @@ export async function syncIfStale(wallet: WalletRow): Promise<void> {
       .update(wallets)
       .set({ lastSyncedAt: new Date() })
       .where(eq(wallets.id, wallet.id));
-  } catch {
-    // Sync failure is non-fatal — fall back to cached DB results
+  } catch (e) {
+    // Sync failure is non-fatal — fall back to cached DB results.
+    // Log so operators can see when external explorer APIs break
+    // (e.g. the Etherscan V1→V2 deprecation).
+    console.warn(
+      `[sync] Failed to sync ${wallet.chain} wallet ${wallet.id}: ${
+        e instanceof Error ? e.message : String(e)
+      }`,
+    );
   }
 }

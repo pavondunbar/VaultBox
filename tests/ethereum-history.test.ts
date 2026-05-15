@@ -20,6 +20,8 @@ const WALLET = "0xAbC1230000000000000000000000000000000001";
 describe("fetchEthereumHistory", () => {
   beforeEach(() => {
     vi.stubGlobal("fetch", vi.fn());
+    // Suppress the "ETHERSCAN_API_KEY not set" warning in tests that exercise that path.
+    vi.spyOn(console, "warn").mockImplementation(() => {});
   });
 
   afterEach(() => {
@@ -72,7 +74,7 @@ describe("fetchEthereumHistory", () => {
       .mockResolvedValueOnce(etherscanResponse([nativeTx]))
       .mockResolvedValueOnce(etherscanEmpty()));
 
-    const result = await fetchEthereumHistory(WALLET, null);
+    const result = await fetchEthereumHistory(WALLET, "key");
 
     expect(result).toHaveLength(1);
     expect(result[0]).toMatchObject({
@@ -125,7 +127,7 @@ describe("fetchEthereumHistory", () => {
       .mockResolvedValueOnce(etherscanResponse([failedTx]))
       .mockResolvedValueOnce(etherscanEmpty()));
 
-    const result = await fetchEthereumHistory(WALLET, null);
+    const result = await fetchEthereumHistory(WALLET, "key");
     expect(result).toHaveLength(0);
   });
 
@@ -143,28 +145,39 @@ describe("fetchEthereumHistory", () => {
       .mockResolvedValueOnce(etherscanResponse([zeroTx]))
       .mockResolvedValueOnce(etherscanEmpty()));
 
-    const result = await fetchEthereumHistory(WALLET, null);
+    const result = await fetchEthereumHistory(WALLET, "key");
     expect(result).toHaveLength(0);
   });
 
   it("returns empty on fetch error", async () => {
     vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("network")));
 
-    const result = await fetchEthereumHistory(WALLET, null);
+    const result = await fetchEthereumHistory(WALLET, "key");
     expect(result).toEqual([]);
   });
 
   it("returns empty on non-ok response", async () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
       ok: false,
+      status: 500,
       json: async () => ({}),
     }));
 
-    const result = await fetchEthereumHistory(WALLET, null);
+    const result = await fetchEthereumHistory(WALLET, "key");
     expect(result).toEqual([]);
   });
 
-  it("passes apikey param when provided", async () => {
+  it("returns empty without making any request when apiKey is null", async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await fetchEthereumHistory(WALLET, null);
+
+    expect(result).toEqual([]);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("uses Etherscan V2 endpoint with chainid for Sepolia", async () => {
     const fetchMock = vi.fn()
       .mockResolvedValueOnce(etherscanEmpty())
       .mockResolvedValueOnce(etherscanEmpty());
@@ -174,19 +187,8 @@ describe("fetchEthereumHistory", () => {
     await fetchEthereumHistory(WALLET, "my-api-key");
 
     const firstCallUrl = fetchMock.mock.calls[0][0] as string;
+    expect(firstCallUrl).toContain("https://api.etherscan.io/v2/api");
+    expect(firstCallUrl).toContain("chainid=11155111");
     expect(firstCallUrl).toContain("apikey=my-api-key");
-  });
-
-  it("omits apikey param when null", async () => {
-    const fetchMock = vi.fn()
-      .mockResolvedValueOnce(etherscanEmpty())
-      .mockResolvedValueOnce(etherscanEmpty());
-
-    vi.stubGlobal("fetch", fetchMock);
-
-    await fetchEthereumHistory(WALLET, null);
-
-    const firstCallUrl = fetchMock.mock.calls[0][0] as string;
-    expect(firstCallUrl).not.toContain("apikey");
   });
 });

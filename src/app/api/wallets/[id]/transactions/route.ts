@@ -6,7 +6,8 @@ import { requireWalletAccess } from "@/lib/wallets/access";
 import { db } from "@/lib/db";
 import { transactions } from "@/lib/db/schema";
 import { syncIfStale } from "@/lib/transactions/sync";
-import { check, rateLimitResponse } from "@/lib/security/rate-limit";
+
+export const dynamic = "force-dynamic";
 
 const idSchema = z.string().uuid();
 
@@ -30,12 +31,8 @@ export async function GET(
   }
   const { wallet } = access;
 
-  const rl = await check("sync", session.id);
-  if (!rl.allowed) {
-    return rateLimitResponse(rl);
-  }
-
-  await syncIfStale(wallet);
+  // Fire sync in background — don't block the response.
+  void syncIfStale(wallet);
 
   const url = new URL(request.url);
   const limit = Math.min(Math.max(parseInt(url.searchParams.get("limit") ?? "50", 10) || 50, 1), 100);
@@ -67,5 +64,7 @@ export async function GET(
     .limit(limit)
     .offset(offset);
 
-  return NextResponse.json({ transactions: rows, pagination: { total, limit, offset } });
+  const res = NextResponse.json({ transactions: rows, pagination: { total, limit, offset } });
+  res.headers.set("Cache-Control", "no-store, no-cache, must-revalidate");
+  return res;
 }

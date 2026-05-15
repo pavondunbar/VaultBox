@@ -211,7 +211,7 @@ The UI provides dropdown selectors for popular tokens on each chain, eliminating
 Users can also **import custom tokens** by pasting any ERC-20 contract address or SPL mint address. The system looks up the token's symbol on-chain (`symbol()` for ERC-20, Metaplex metadata for SPL) and adds it to the dropdown for the current session. Import endpoints: `GET /api/tokens/erc20?address=` and `GET /api/tokens/spl?mint=`.
 
 ### On-Chain Transaction History
-Transaction history is synced from external sources — Etherscan API for Ethereum Sepolia (native + ERC-20), Solana RPC for Devnet (system + SPL transfers), and Blockstream Esplora API for Bitcoin Testnet (native BTC). The sync is lazy: history is fetched when a user views their transactions and the last sync is older than 2 minutes. Both incoming and outgoing transactions are normalized into a common format and deduplicated on insert. An optional `ETHERSCAN_API_KEY` increases Etherscan rate limits.
+Transaction history is synced from external sources — Etherscan API for Ethereum Sepolia (native + ERC-20), Solana RPC for Devnet (system + SPL transfers), and Blockstream Esplora API for Bitcoin Testnet (native BTC). The sync is lazy: history is fetched when a user views their transactions and the last sync is older than 2 minutes. Both incoming and outgoing transactions are normalized into a common format and deduplicated on insert. `ETHERSCAN_API_KEY` is **required** for Ethereum history sync — Etherscan deprecated their V1 API in August 2025 and V2 mandates an API key.
 
 ### Replace-By-Fee (RBF)
 Ethereum transactions that are stuck in the mempool (pending) can be replaced by resubmitting with the same nonce but higher gas fees. The UI shows a "Speed Up" button on pending outgoing Ethereum transactions. The replacement uses EIP-1559 parameters (`maxFeePerGas` and `maxPriorityFeePerGas` in wei). The system validates that the original transaction is still pending before allowing replacement. All replacements are recorded in the `rbf_transactions` table for audit trail.
@@ -607,7 +607,7 @@ Open [http://localhost:3000](http://localhost:3000).
 | `ETH_RPC_URL` | Yes | Sepolia RPC endpoint (Infura, Alchemy, etc.) — supports comma-separated URLs for failover |
 | `SOL_RPC_URL` | No | Defaults to `https://api.devnet.solana.com` — supports comma-separated URLs for failover |
 | `BTC_API_URL` | Yes | Blockstream Esplora API URL (default: `https://blockstream.info/testnet/api`) |
-| `ETHERSCAN_API_KEY` | No | Etherscan API key for higher rate limits on transaction history sync |
+| `ETHERSCAN_API_KEY` | Yes (for ETH history) | Etherscan API key. Required for Ethereum transaction history sync — Etherscan deprecated their V1 API in August 2025 and the V2 API requires a key. Without it, only outbound transactions broadcast through VaultBox itself will appear in the history; inbound ETH/ERC-20 transfers will not. Get a free key at [etherscan.io/apidashboard](https://etherscan.io/apidashboard). |
 | `APP_URL` | No | Defaults to `http://localhost:3000` |
 | `REDIS_URL` | No | Redis connection URL for distributed rate limiting (e.g., `redis://localhost:6379`) |
 | `INDEXER_POLL_MS` | No | Chain indexer poll interval in milliseconds (default: 15000) |

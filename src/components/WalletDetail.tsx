@@ -259,14 +259,26 @@ export function WalletDetail({
       createdAt: string;
     }[]
   >([]);
+  const [txLoading, setTxLoading] = useState(true);
+  const [txError, setTxError] = useState<string | null>(null);
 
   const loadTx = useCallback(async () => {
-    const res = await fetch(`/api/wallets/${walletId}/transactions`, {
-      credentials: "include",
-    });
-    const data = await res.json();
-    if (res.ok && Array.isArray(data.transactions)) {
-      setTxRows(data.transactions);
+    try {
+      const res = await fetch(`/api/wallets/${walletId}/transactions`, {
+        credentials: "include",
+        cache: "no-store",
+      });
+      const data = await res.json();
+      if (res.ok && Array.isArray(data.transactions)) {
+        setTxRows(data.transactions);
+        setTxError(null);
+      } else {
+        setTxError(data.error ?? `HTTP ${res.status}`);
+      }
+    } catch (e) {
+      setTxError(e instanceof Error ? e.message : "Failed to load");
+    } finally {
+      setTxLoading(false);
     }
   }, [walletId]);
 
@@ -714,7 +726,19 @@ export function WalletDetail({
               </tr>
             </thead>
             <tbody>
-              {txRows.length === 0 ? (
+              {txLoading ? (
+                <tr>
+                  <td colSpan={6} className="py-6 text-slate-500">
+                    Loading transactions…
+                  </td>
+                </tr>
+              ) : txError ? (
+                <tr>
+                  <td colSpan={6} className="py-6 text-red-400">
+                    Error: {txError}
+                  </td>
+                </tr>
+              ) : txRows.length === 0 ? (
                 <tr>
                   <td colSpan={6} className="py-6 text-slate-500">
                     No transactions yet.
